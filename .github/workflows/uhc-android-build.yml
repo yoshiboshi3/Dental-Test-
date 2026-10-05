@@ -1,0 +1,127 @@
+name: Build UHC Android Prototype
+
+on:
+  push:
+    branches:
+      - uhc-android-prototype
+    paths:
+      - "uhc-android/**"
+      - ".github/workflows/uhc-android-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout Android wrapper
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.20"
+
+      - name: Install web build helpers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tree jq python3-venv
+          python3 -m venv /tmp/uhc-venv
+          /tmp/uhc-venv/bin/pip install jinja2-cli
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
+      - name: Fetch UHC browser-port source
+        run: |
+          git clone --depth=1 https://github.com/jennymaeleidig/unofficial-homestuck-collection-web.git /tmp/uhc-web
+          cd /tmp/uhc-web
+          git rev-parse HEAD | tee "$GITHUB_WORKSPACE/uhc-android/WEB_FRONTEND_COMMIT.txt"
+
+      - name: Build UHC frontend for the private Android origins
+        working-directory: /tmp/uhc-web
+        env:
+          ASSET_PACK_HREF: https://uhc-assets.local/
+          ASSET_DIR: /assets/
+          APP_VERSION: 0.1.0-android
+          AUTH_SERVER_URL: ""
+          NODE_OPTIONS: --max_old_space_size=8192
+        run: |
+          yarn install --frozen-lockfile --ignore-engines
+
+          # Keep the APK genuinely offline: remove the optional analytics loader.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("public/index.html")
+          s = p.read_text()
+          s = "\n".join(line for line in s.splitlines() if "goatcounter" not in line and "gc.zgo.at" not in line)
+          p.write_text(s)
+          PY
+
+          mkdir -p build
+          (cd src && tar -cf - imods/ | gzip -9 - > imods.tar.gz)
+          yarn exec node src/js/validation.js src/imods/ src/js/crc_imods.json
+          tree -J src/imods | jq '. | walk(if type == "object" then (if .type == "file" then ({"key": (.name), "value": true}) elif has("contents") then {"key": (.name), "value": .contents|from_entries} else . end) else . end) | .[:-1] | from_entries' > build/webAppModTrees.json
+
+          /tmp/uhc-venv/bin/jinja2 webapp/browser.js.j2 -o webapp/browser.js
+          yarn run vue-cli-service build webapp/browser.js
+
+          rm -rf "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
+          mkdir -p "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
+          cp -a dist/. "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www/"
+
+          echo "Bundled web files:"
+          du -sh "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
+          find "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www" -maxdepth 2 -type f | head -40
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build debug APK
+        run: |
+          gradle -p uhc-android --no-daemon :app:assembleDebug --stacktrace
+          test -f uhc-android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Inspect APK
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging uhc-android/app/build/outputs/apk/debug/app-debug.apk | head -20
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose uhc-android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Package deliverables
+        run: |
+          mkdir -p deliverable
+          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.0-debug.apk
+          cp uhc-android/README.md deliverable/README.md
+          cp uhc-android/WEB_FRONTEND_COMMIT.txt deliverable/WEB_FRONTEND_COMMIT.txt
+
+          # Source checkpoint: Android wrapper + workflow/build recipe, but not generated frontend or build outputs.
+          zip -qr deliverable/UHC-Android-v0.1.0-source.zip uhc-android .github/workflows/uhc-android-build.yml \
+            -x 'uhc-android/app/build/*' \
+               'uhc-android/.gradle/*' \
+               'uhc-android/app/src/main/assets/www/*'
+
+          ls -lh deliverable
+
+      - name: Upload APK and source checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: UHC-Android-v0.1.0
+          path: deliverable/*
+          if-no-files-found: error
+          retention-days: 7
