@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'Skipping root web install; building Android prototype instead.'",
+  "buildCommand": "bash uhc-android/tools/vercel-build.sh",
+  "outputDirectory": "uhc-android/vercel-output"
+}
