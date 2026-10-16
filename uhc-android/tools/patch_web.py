@@ -131,9 +131,11 @@ android_css = r"""
 
   /* The TabFrame is normally horizontally scrollable because some desktop
      gimmick pages need it. Disable that only for layouts we explicitly fit. */
-  html.uhc-android .tabFrame:has(.homepage),
-  html.uhc-android .tabFrame:has([data-component="x2Combo"]) {
+  html.uhc-android .tabFrame:has(.homepage) {
     overflow-x: hidden !important;
+  }
+  html.uhc-android .tabFrame:has([data-component="x2Combo"]) {
+    overflow-x: auto !important;
   }
 
   /*
@@ -354,6 +356,49 @@ if ruffle_config_marker not in s:
 s = s.replace(ruffle_config_marker, ruffle_config_insert, 1)
 write("src/components/UIElements/MediaEmbed.vue", s)
 
+# The first Openbound/Meenah cutscene is overlaid separately from the HTML5
+# Sburb game. Its soundtrack is a separate BGM asset, so play it during the
+# overlay and stop it before handing control back to the game.
+s = read("src/components/StoryPage/Page.vue")
+intro_marker = """              <div
+                ref="introOverlay"
+                class="panel intro-overlay"
+                style="position:absolute;z-index:99;pointer-events:auto;"
+              >"""
+intro_replacement = """              <div
+                ref="introOverlay"
+                class="panel intro-overlay"
+                style="position:absolute;z-index:99;pointer-events:auto;"
+              >
+                <audio
+                  ref="introAudio"
+                  autoplay
+                  preload="auto"
+                  :src="$getResourceURL('/storyfiles/hs2/05260/resources/openbound/audio/music/FuschiaRulerQuiet.mp3')"
+                  style="display:none;"
+                ></audio>"""
+if intro_marker not in s:
+    raise RuntimeError("Openbound intro overlay marker not found")
+s = s.replace(intro_marker, intro_replacement, 1)
+finish_marker = """      if (event.data && event.data.type === "swfFinished") {
+        // Hide the intro overlay
+        this.showIntroOverlay = false;
+      }"""
+finish_replacement = """      if (event.data && event.data.type === "swfFinished") {
+        if (this.$refs.introAudio) {
+          try {
+            this.$refs.introAudio.pause()
+            this.$refs.introAudio.currentTime = 0
+          } catch (e) {}
+        }
+        // Hide the intro overlay
+        this.showIntroOverlay = false;
+      }"""
+if finish_marker not in s:
+    raise RuntimeError("Openbound intro finish handler not found")
+s = s.replace(finish_marker, finish_replacement, 1)
+write("src/components/StoryPage/Page.vue", s)
+
 # Give the special A6A5 x2 Combo component a stable Android-only selector.
 s = read("src/components/SpecialPages/x2Combo.vue")
 old_x2_root = '<div class="pageBody customStyles">'
@@ -371,24 +416,246 @@ if x2_methods_marker not in s:
     raise RuntimeError("x2Combo methods marker not found")
 
 x2_lifecycle = """  mounted() {
+    this.__androidPinchScale = 1
+    this.__androidPinchStartDistance = 0
+    this.__androidPinchStartScale = 1
+
     this.__androidFitX2 = () => {
       const host = this.$el.parentElement
       const available = (host && host.clientWidth) || document.documentElement.clientWidth || window.innerWidth
-      const scale = Math.min(1, available / 1660)
+      const fit = Math.min(1, available / 1660)
+      const saved = Math.max(0.60, Math.min(1.80, Number(this.$localData.settings.x2ComboZoomPercent || 100) / 100))
+      const pinch = Math.max(0.60, Math.min(2.50, Number(this.__androidPinchScale || 1)))
+      const scale = fit * saved * pinch
       this.$el.style.zoom = String(scale)
       this.$el.style.width = "1660px"
       this.$el.style.minWidth = "1660px"
       this.$el.style.maxWidth = "none"
     }
+
+    const distance = touches => {
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    this.__androidTouchStart = e => {
+      if (e.touches && e.touches.length === 2) {
+        this.__androidPinchStartDistance = distance(e.touches)
+        this.__androidPinchStartScale = this.__androidPinchScale || 1
+      }
+    }
+    this.__androidTouchMove = e => {
+      if (e.touches && e.touches.length === 2 && this.__androidPinchStartDistance > 0) {
+        e.preventDefault()
+        const ratio = distance(e.touches) / this.__androidPinchStartDistance
+        this.__androidPinchScale = Math.max(0.60, Math.min(2.50, this.__androidPinchStartScale * ratio))
+        this.__androidFitX2()
+      }
+    }
+    this.__androidTouchEnd = e => {
+      if (!e.touches || e.touches.length < 2) this.__androidPinchStartDistance = 0
+    }
+
     this.$nextTick(this.__androidFitX2)
     window.addEventListener("resize", this.__androidFitX2)
+    this.$el.addEventListener("touchstart", this.__androidTouchStart, { passive: true })
+    this.$el.addEventListener("touchmove", this.__androidTouchMove, { passive: false })
+    this.$el.addEventListener("touchend", this.__androidTouchEnd, { passive: true })
+    this.$el.addEventListener("touchcancel", this.__androidTouchEnd, { passive: true })
   },
   beforeDestroy() {
     if (this.__androidFitX2) window.removeEventListener("resize", this.__androidFitX2)
+    if (this.__androidTouchStart) this.$el.removeEventListener("touchstart", this.__androidTouchStart)
+    if (this.__androidTouchMove) this.$el.removeEventListener("touchmove", this.__androidTouchMove)
+    if (this.__androidTouchEnd) {
+      this.$el.removeEventListener("touchend", this.__androidTouchEnd)
+      this.$el.removeEventListener("touchcancel", this.__androidTouchEnd)
+    }
   },
 """
 s = s.replace(x2_methods_marker, x2_lifecycle + x2_methods_marker)
 write("src/components/SpecialPages/x2Combo.vue", s)
+
+# Add the Android-specific global x2 Combo zoom preference.
+s = read("src/store/localData.js")
+zoom_marker = """  ruffleFallback: true,
+
+  // Dynamically enable mods based on what's available in the asset pack"""
+zoom_replacement = """  ruffleFallback: true,
+  x2ComboZoomPercent: 100,
+
+  // Dynamically enable mods based on what's available in the asset pack"""
+if zoom_marker not in s:
+    raise RuntimeError("x2 zoom DEFAULT_SETTINGS marker not found")
+s = s.replace(zoom_marker, zoom_replacement, 1)
+write("src/store/localData.js", s)
+
+# Add an Android-specific settings card linking to a dedicated preview page.
+s = read("src/components/SystemPages/Settings.vue")
+settings_anchor = """    <div class="card">
+      <div class="settings controversial">"""
+settings_card = """    <div class="card">
+      <div class="settings">
+        <h2>2x Combo Layout</h2>
+        <p class="settingDesc">
+          Set the default size of Act 6 Act 5's dual-page x2 Combo layout.
+          You can also pinch-zoom temporarily while reading those pages.
+        </p>
+        <p><a href="/x2-combo-preview">Open 2x Combo Preview</a></p>
+      </div>
+    </div>
+
+"""
+if settings_anchor not in s:
+    raise RuntimeError("Settings x2 card insertion point not found")
+s = s.replace(settings_anchor, settings_card + settings_anchor, 1)
+write("src/components/SystemPages/Settings.vue", s)
+
+# Dedicated x2 preview/settings page.
+x2_preview = r'''<template>
+  <GenericCardPage>
+    <div class="card previewCard">
+      <h2>2x Combo Preview</h2>
+      <p>
+        100% means both original 1660px-wide pages are fitted exactly to your
+        available screen width. Raise it if you prefer larger panels and are
+        willing to pan horizontally.
+      </p>
+
+      <div class="sliderRow">
+        <input
+          type="range"
+          min="60"
+          max="180"
+          step="5"
+          v-model.number="$localData.settings.x2ComboZoomPercent"
+          @input="save"
+          @change="save"
+        />
+        <strong>{{ $localData.settings.x2ComboZoomPercent || 100 }}%</strong>
+        <button @click="reset">Reset</button>
+      </div>
+
+      <div class="previewViewport" ref="viewport">
+        <div class="previewStage" :style="{ zoom: previewZoom }">
+          <div class="previewHeader">ACT 6 ACT 5 ACT 1 x2 COMBO!!!</div>
+          <div class="previewNav">
+            <span>HOMESTUCK COLLECTION · HELP · MAP · LOG</span>
+            <span>HOMESTUCK COLLECTION · HELP · MAP · LOG</span>
+          </div>
+          <div class="previewPages">
+            <section>
+              <div class="arrow">&gt; ==&gt;</div>
+              <div class="fakeArt leftArt">LEFT PAGE</div>
+              <div class="log">
+                TT: Is it still going on?<br />
+                GG: No, it stopped.<br />
+                TT: What do you think it was?
+              </div>
+              <div class="bottomArrow">↖ back to top</div>
+            </section>
+            <section>
+              <div class="arrow">&gt; ==&gt;</div>
+              <div class="fakeArt rightArt">RIGHT PAGE</div>
+              <div class="log">
+                GG: Doesn't matter.<br />
+                TT: Maybe it was like, tidal forces.<br />
+                GG: Um. Yeah let's say that.
+              </div>
+              <div class="bottomArrow">next page ==&gt;</div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">
+        This setting is global. Pinch zoom on a real x2 Combo page is temporary
+        and does not overwrite this default.
+      </p>
+      <p><a href="/settings">← Back to Settings</a></p>
+    </div>
+  </GenericCardPage>
+</template>
+
+<script>
+import GenericCardPage from "@/components/Template/GenericCardPage.vue";
+
+export default {
+  name: "X2ComboPreview",
+  components: { GenericCardPage },
+  data() {
+    return { viewportWidth: 1000 };
+  },
+  computed: {
+    previewZoom() {
+      const fit = Math.min(1, (this.viewportWidth || 1000) / 1660);
+      const chosen = Math.max(0.6, Math.min(1.8, Number(this.$localData.settings.x2ComboZoomPercent || 100) / 100));
+      return fit * chosen;
+    }
+  },
+  mounted() {
+    this.updateWidth();
+    this.__resizePreview = () => this.updateWidth();
+    window.addEventListener("resize", this.__resizePreview);
+  },
+  beforeDestroy() {
+    if (this.__resizePreview) window.removeEventListener("resize", this.__resizePreview);
+  },
+  methods: {
+    updateWidth() {
+      this.$nextTick(() => {
+        if (this.$refs.viewport) this.viewportWidth = this.$refs.viewport.clientWidth;
+      });
+    },
+    save() {
+      this.$localData.root.saveLocalStorage();
+      this.updateWidth();
+    },
+    reset() {
+      this.$localData.settings.x2ComboZoomPercent = 100;
+      this.save();
+    }
+  }
+};
+</script>
+
+<style scoped>
+.previewCard { width: 100%; max-width: 1100px; box-sizing: border-box; }
+.sliderRow { display:flex; gap:14px; align-items:center; margin:20px 0; flex-wrap:wrap; }
+.sliderRow input { flex:1 1 420px; }
+.previewViewport { width:100%; max-width:100%; overflow:auto; border:2px solid #888; background:#535353; min-height:480px; box-sizing:border-box; }
+.previewStage { width:1660px; min-width:1660px; transform-origin:top left; background:#535353; font-family:"Courier New", monospace; }
+.previewHeader { width:1660px; box-sizing:border-box; text-align:center; padding:18px; font-size:42px; font-weight:bold; background:#222; color:#ffd84a; }
+.previewNav { display:flex; width:1660px; box-sizing:border-box; justify-content:space-around; padding:8px; background:#666; color:white; font:bold 14px Arial; }
+.previewPages { display:flex; gap:33px; justify-content:center; align-items:flex-start; padding:12px 0 30px; }
+.previewPages section { width:650px; background:#eee; }
+.arrow { height:70px; box-sizing:border-box; padding:18px; font-size:30px; text-align:center; color:#111; }
+.fakeArt { height:450px; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:bold; color:white; }
+.leftArt { background:linear-gradient(135deg,#24003f,#9d00d4,#ff8800); }
+.rightArt { background:linear-gradient(135deg,#180000,#7b0000,#ffcc00); }
+.log { margin:30px 22px; min-height:150px; border:1px dashed #888; padding:14px; font-size:18px; line-height:1.4; }
+.bottomArrow { padding:18px 24px 30px; font-size:24px; text-decoration:underline; color:#03c; }
+.hint { margin-top:16px; font-size:12px; font-family:Arial,sans-serif; font-weight:normal; }
+</style>
+'''
+write("src/components/SystemPages/X2ComboPreview.vue", x2_preview)
+
+# Register the new preview route/component.
+s = read("src/components/TabFrame.vue")
+settings_import = "const SETTINGS = () => import('@/components/SystemPages/Settings.vue')"
+if settings_import not in s:
+    raise RuntimeError("TabFrame settings import not found")
+s = s.replace(settings_import, settings_import + "\nconst X2COMBOPREVIEW = () => import('@/components/SystemPages/X2ComboPreview.vue')", 1)
+settings_component = "        SETTINGS,\n        CREDITS,"
+if settings_component not in s:
+    raise RuntimeError("TabFrame settings component registration not found")
+s = s.replace(settings_component, "        SETTINGS,\n        X2COMBOPREVIEW,\n        CREDITS,", 1)
+route_marker = "                'mspfa': 'MSPFADisambig'\n"
+if route_marker not in s:
+    raise RuntimeError("TabFrame mapRoute marker not found")
+s = s.replace(route_marker, "                'mspfa': 'MSPFADisambig',\n                'x2-combo-preview': 'X2ComboPreview'\n", 1)
+write("src/components/TabFrame.vue", s)
 
 # Restore local-only persistence. The hosted fork moved save/settings data to an
 # HTTP auth server, which makes no sense in a fully offline APK.
