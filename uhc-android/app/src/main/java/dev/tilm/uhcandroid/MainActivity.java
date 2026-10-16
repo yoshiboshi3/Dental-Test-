@@ -140,7 +140,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         Button assets = new Button(this);
-        assets.setText("Assets");
+        assets.setText("Assets · v0.1.9");
         assets.setTextSize(11);
         assets.setAlpha(0.78f);
         assets.setOnClickListener(v -> chooseAssetFolder());
@@ -158,6 +158,11 @@ public final class MainActivity extends Activity {
                     Toast.LENGTH_LONG).show();
         }
 
+        // Bundled frontend URLs are stable local URLs. Android WebView can keep
+        // a previous build in its HTTP cache across APK updates, so explicitly
+        // bypass that cache while preserving localStorage/settings.
+        webView.clearCache(true);
+
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -170,6 +175,7 @@ public final class MainActivity extends Activity {
         s.setLoadWithOverviewMode(false);
         s.setUseWideViewPort(true);
         s.setSupportMultipleWindows(false);
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         if (android.os.Build.VERSION.SDK_INT >= 21) {
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         }
