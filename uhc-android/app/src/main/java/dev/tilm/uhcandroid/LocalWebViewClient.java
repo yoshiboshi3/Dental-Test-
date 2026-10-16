@@ -109,19 +109,45 @@ final class LocalWebViewClient extends WebViewClient {
                 html.contains("SBURBgameDiv");
 
         String openboundTouch = isSburb ? (
-                "<style id=\"uhc-openbound-touch-style\">" +
-                "#uhcOpenboundTouch{position:fixed;left:0;right:0;bottom:8px;z-index:2147483647;" +
-                "pointer-events:none;font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}" +
-                "#uhcOpenboundTouch button{pointer-events:auto;position:absolute;width:54px;height:54px;" +
-                "border:2px solid rgba(255,255,255,.82);border-radius:14px;background:rgba(0,0,0,.50);" +
-                "color:#fff;font:bold 25px Arial;touch-action:none;-webkit-tap-highlight-color:transparent}" +
-                "#uhcOpenboundTouch .u{left:70px;bottom:74px}" +
-                "#uhcOpenboundTouch .d{left:70px;bottom:8px}" +
-                "#uhcOpenboundTouch .l{left:8px;bottom:41px}" +
-                "#uhcOpenboundTouch .r{left:132px;bottom:41px}" +
-                "#uhcOpenboundTouch .a{right:16px;bottom:28px;width:88px;height:66px;border-radius:33px;" +
-                "font-size:13px;letter-spacing:1px;background:rgba(90,0,110,.62)}" +
+                "<style id=\"uhc-sburb-controller-style\">" +
+                "#uhcOpenboundTouch{position:fixed;left:0;right:0;bottom:0;height:154px;z-index:2147483647;" +
+                "pointer-events:none;font-family:monospace;-webkit-user-select:none;user-select:none}" +
+                "#uhcOpenboundTouch *{box-sizing:border-box}" +
+                "#uhcOpenboundTouch .plate{position:absolute;left:8px;right:8px;bottom:8px;height:138px;" +
+                "border:2px solid rgba(88,255,244,.55);border-radius:20px;background:linear-gradient(180deg,rgba(11,19,30,.20),rgba(4,9,17,.58));" +
+                "box-shadow:inset 0 0 0 2px rgba(255,0,170,.10),0 4px 18px rgba(0,0,0,.34);pointer-events:none}" +
+                "#uhcOpenboundTouch .brand{position:absolute;left:50%;bottom:116px;transform:translateX(-50%);" +
+                "color:rgba(210,255,250,.78);font:bold 10px monospace;letter-spacing:2px;text-shadow:0 1px #000}" +
+
+                "#uhcOpenboundTouch button{pointer-events:auto;position:absolute;border:2px solid rgba(255,255,255,.78);" +
+                "background:rgba(9,14,22,.70);color:#fff;font:bold 18px monospace;touch-action:none;" +
+                "-webkit-tap-highlight-color:transparent;box-shadow:inset 0 -3px rgba(0,0,0,.35)}" +
+
+                "#uhcOpenboundTouch .joy{pointer-events:auto;position:absolute;left:20px;bottom:17px;width:112px;height:112px;" +
+                "border-radius:56px;border:3px solid rgba(77,235,255,.78);background:radial-gradient(circle,rgba(27,52,68,.62),rgba(4,10,18,.78));" +
+                "touch-action:none;box-shadow:inset 0 0 16px rgba(0,220,255,.25)}" +
+                "#uhcOpenboundTouch .joy:after{content:'';position:absolute;left:38px;top:38px;width:32px;height:32px;border-radius:50%;" +
+                "background:rgba(230,255,255,.82);border:2px solid rgba(0,0,0,.55);box-shadow:0 2px 8px rgba(0,0,0,.5)}" +
+                "#uhcOpenboundTouch .joyLabel{position:absolute;left:49px;bottom:61px;color:#061016;font:bold 8px monospace;z-index:1;pointer-events:none}" +
+
+                "#uhcOpenboundTouch .u{left:171px;bottom:88px;width:44px;height:44px;border-radius:9px}" +
+                "#uhcOpenboundTouch .d{left:171px;bottom:10px;width:44px;height:44px;border-radius:9px}" +
+                "#uhcOpenboundTouch .l{left:132px;bottom:49px;width:44px;height:44px;border-radius:9px}" +
+                "#uhcOpenboundTouch .r{left:210px;bottom:49px;width:44px;height:44px;border-radius:9px}" +
+
+                "#uhcOpenboundTouch .abxy{position:absolute;right:14px;bottom:13px;width:150px;height:118px;pointer-events:none}" +
+                "#uhcOpenboundTouch .a,#uhcOpenboundTouch .b,#uhcOpenboundTouch .x,#uhcOpenboundTouch .y{" +
+                "width:48px;height:48px;border-radius:50%;font-size:18px}" +
+                "#uhcOpenboundTouch .a{right:0;bottom:35px;border-color:#80ff9a;color:#9affaa}" +
+                "#uhcOpenboundTouch .b{right:42px;bottom:0;border-color:#ff7272;color:#ff9d9d}" +
+                "#uhcOpenboundTouch .x{right:42px;bottom:70px;border-color:#72b9ff;color:#a7d4ff}" +
+                "#uhcOpenboundTouch .y{right:84px;bottom:35px;border-color:#ffe36b;color:#fff1a5}" +
+
+                "#uhcOpenboundTouch .shoulder{width:58px;height:28px;border-radius:9px;font-size:10px;bottom:118px}" +
+                "#uhcOpenboundTouch .shift{left:274px;border-color:#cf8cff;color:#e2b9ff}" +
+                "#uhcOpenboundTouch .enter{right:182px;border-color:#70ffe8;color:#a5fff2}" +
                 "</style>" +
+
                 "<script>(function(){" +
                 "function report(msg){try{var id='uhcOpenboundError';var p=document.getElementById(id);" +
                 "if(!p){p=document.createElement('pre');p.id=id;p.style.cssText='position:fixed;left:6px;right:6px;" +
@@ -129,6 +155,7 @@ final class LocalWebViewClient extends WebViewClient {
                 "padding:8px;font:11px monospace;white-space:pre-wrap;pointer-events:none';document.body.appendChild(p);}p.textContent+=msg+'\\n';}catch(_){}}" +
                 "window.addEventListener('error',function(e){report('JS '+(e.message||'error')+' @ '+(e.filename||'')+':'+(e.lineno||''));});" +
                 "window.addEventListener('unhandledrejection',function(e){report('PROMISE '+String(e.reason));});" +
+
                 "function eventFor(type,code,key){var e=new Event(type,{bubbles:true,cancelable:true});" +
                 "try{Object.defineProperty(e,'keyCode',{value:code});Object.defineProperty(e,'which',{value:code});" +
                 "Object.defineProperty(e,'key',{value:key});}catch(_){ }return e;}" +
@@ -137,20 +164,39 @@ final class LocalWebViewClient extends WebViewClient {
                 "var e=eventFor(type,code,key);var h=(type==='keydown'?t.onkeydown:t.onkeyup);" +
                 "if(typeof h==='function'){try{h.call(t,e);return;}catch(err){report('INPUT '+String(err));}}" +
                 "t.dispatchEvent(e);}" +
+
                 "function bind(btn,code,key){var down=false;" +
                 "function press(ev){ev.preventDefault();if(down)return;down=true;send('keydown',code,key);}" +
                 "function release(ev){if(ev)ev.preventDefault();if(!down)return;down=false;send('keyup',code,key);}" +
                 "btn.addEventListener('pointerdown',press);btn.addEventListener('pointerup',release);" +
                 "btn.addEventListener('pointercancel',release);btn.addEventListener('pointerleave',release);" +
                 "btn.addEventListener('contextmenu',function(e){e.preventDefault();});}" +
+
+                "function bindJoystick(el){var held={87:false,65:false,83:false,68:false};" +
+                "function set(code,on,key){if(held[code]===on)return;held[code]=on;send(on?'keydown':'keyup',code,key);}" +
+                "function update(ev){var r=el.getBoundingClientRect();var x=ev.clientX-(r.left+r.width/2);var y=ev.clientY-(r.top+r.height/2);" +
+                "var dead=13;set(65,x<-dead,'a');set(68,x>dead,'d');set(87,y<-dead,'w');set(83,y>dead,'s');}" +
+                "function clear(){set(65,false,'a');set(68,false,'d');set(87,false,'w');set(83,false,'s');}" +
+                "el.addEventListener('pointerdown',function(e){e.preventDefault();try{el.setPointerCapture(e.pointerId);}catch(_){ }update(e);});" +
+                "el.addEventListener('pointermove',function(e){if(e.buttons||e.pressure>0)update(e);});" +
+                "el.addEventListener('pointerup',function(e){e.preventDefault();clear();});" +
+                "el.addEventListener('pointercancel',clear);}" +
+
                 "function mount(){if(document.getElementById('uhcOpenboundTouch'))return;" +
                 "var c=document.createElement('div');c.id='uhcOpenboundTouch';" +
-                "c.innerHTML='<button class=\"u\">▲</button><button class=\"d\">▼</button>'+" +
-                "'<button class=\"l\">◀</button><button class=\"r\">▶</button><button class=\"a\">ACTION</button>';" +
+                "c.innerHTML='<div class=\"plate\"></div><div class=\"brand\">SBURB CONTROLLER</div>'+" +
+                "'<div class=\"joy\"><span class=\"joyLabel\">MOVE</span></div>'+" +
+                "'<button class=\"u\">▲</button><button class=\"d\">▼</button><button class=\"l\">◀</button><button class=\"r\">▶</button>'+" +
+                "'<div class=\"abxy\"><button class=\"a\">A</button><button class=\"b\">B</button><button class=\"x\">X</button><button class=\"y\">Y</button></div>'+" +
+                "'<button class=\"shoulder shift\">SHIFT</button><button class=\"shoulder enter\">ENTER</button>';" +
                 "document.body.appendChild(c);" +
+
+                "bindJoystick(c.querySelector('.joy'));" +
                 "bind(c.querySelector('.u'),38,'ArrowUp');bind(c.querySelector('.d'),40,'ArrowDown');" +
                 "bind(c.querySelector('.l'),37,'ArrowLeft');bind(c.querySelector('.r'),39,'ArrowRight');" +
-                "bind(c.querySelector('.a'),32,' ');}" +
+                "bind(c.querySelector('.a'),32,' ');bind(c.querySelector('.b'),17,'Control');" +
+                "bind(c.querySelector('.x'),88,'x');bind(c.querySelector('.y'),90,'z');" +
+                "bind(c.querySelector('.shift'),16,'Shift');bind(c.querySelector('.enter'),13,'Enter');}" +
                 "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();" +
                 "})();</script>"
         ) : "";
