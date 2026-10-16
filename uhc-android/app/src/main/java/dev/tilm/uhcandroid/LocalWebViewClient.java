@@ -55,6 +55,10 @@ final class LocalWebViewClient extends WebViewClient {
                         r.mimeType.toLowerCase(Locale.US).startsWith("text/html")) {
                     return serveResponsiveLegacyHtml(r, path);
                 }
+                if (r.statusCode == 200 && path != null &&
+                        path.toLowerCase(Locale.US).endsWith(".xml")) {
+                    return serveRewrittenTextAsset(r, "application/xml");
+                }
                 return new WebResourceResponse(
                         r.mimeType,
                         null,
@@ -96,6 +100,9 @@ final class LocalWebViewClient extends WebViewClient {
         // ISO-8859-1 is intentional here: converting arbitrary legacy HTML bytes
         // to String and back with this charset is byte-preserving for 0x00-0xFF.
         String html = new String(buffer.toByteArray(), StandardCharsets.ISO_8859_1);
+        // Raw UHC HTML pages were authored for Electron's custom assets:// protocol.
+        // Translate those references to the Android bridge origin before WebView parses them.
+        html = html.replace("assets://", "https://" + ASSET_HOST + "/");
         boolean isOpenbound =
                 path != null &&
                 path.matches("(?i).*/storyfiles/hs2/(05260|05305|05395)/[^/]*\\.html$");
@@ -193,6 +200,37 @@ final class LocalWebViewClient extends WebViewClient {
         );
     }
 
+    private WebResourceResponse serveRewrittenTextAsset(
+            AssetPackResolver.AssetResponse source, String mime) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (InputStream in = source.stream) {
+            byte[] chunk = new byte[16384];
+            int read;
+            while ((read = in.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+            }
+        }
+
+        String text = new String(buffer.toByteArray(), StandardCharsets.UTF_8)
+                .replace("assets://", "https://" + ASSET_HOST + "/");
+        byte[] out = text.getBytes(StandardCharsets.UTF_8);
+
+        Map<String, String> headers = new HashMap<>(source.headers);
+        headers.remove("Content-Length");
+        headers.put("Content-Length", Integer.toString(out.length));
+        headers.put("Cache-Control", "no-cache");
+        headers.put("Access-Control-Allow-Origin", "*");
+
+        return new WebResourceResponse(
+                mime,
+                "UTF-8",
+                200,
+                "OK",
+                headers,
+                new ByteArrayInputStream(out)
+        );
+    }
+
     private WebResourceResponse serveBundledApp(String path) throws IOException {
         if (path == null || path.isEmpty() || "/".equals(path)) path = "/index.html";
         while (path.startsWith("/")) path = path.substring(1);
@@ -256,6 +294,7 @@ final class LocalWebViewClient extends WebViewClient {
         if (p.endsWith(".css")) return "text/css";
         if (p.endsWith(".js")) return "application/javascript";
         if (p.endsWith(".json")) return "application/json";
+        if (p.endsWith(".xml")) return "application/xml";
         if (p.endsWith(".png")) return "image/png";
         if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
         if (p.endsWith(".gif")) return "image/gif";
