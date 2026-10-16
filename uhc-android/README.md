@@ -19,3 +19,6 @@ The build job compiles the public UHC web-compatible frontend and bundles only t
 This is a compatibility experiment. Special pages, Openbound and unusual Flash pages may require follow-up fixes after testing on a real Fold.
 
 UHC credits and licensing remain with the upstream project and its contributors.
+
+
+<!-- build-trigger: v0.1.16-final-2026-10-16 -->
