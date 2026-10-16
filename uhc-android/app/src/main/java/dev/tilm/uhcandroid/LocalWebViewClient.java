@@ -10,6 +10,7 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +51,10 @@ final class LocalWebViewClient extends WebViewClient {
             if (ASSET_HOST.equals(host)) {
                 String path = uri.getEncodedPath();
                 AssetPackResolver.AssetResponse r = assetPack.open(path, range);
+                if (r.statusCode == 200 && r.mimeType != null &&
+                        r.mimeType.toLowerCase(Locale.US).startsWith("text/html")) {
+                    return serveResponsiveLegacyHtml(r);
+                }
                 return new WebResourceResponse(
                         r.mimeType,
                         null,
@@ -74,6 +79,68 @@ final class LocalWebViewClient extends WebViewClient {
                     "Could not read " + uri + "\n\n" + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return null;
+    }
+
+
+    private WebResourceResponse serveResponsiveLegacyHtml(AssetPackResolver.AssetResponse source)
+            throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (InputStream in = source.stream) {
+            byte[] chunk = new byte[16384];
+            int read;
+            while ((read = in.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+            }
+        }
+
+        // ISO-8859-1 is intentional here: converting arbitrary legacy HTML bytes
+        // to String and back with this charset is byte-preserving for 0x00-0xFF.
+        String html = new String(buffer.toByteArray(), StandardCharsets.ISO_8859_1);
+        String injection =
+                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">" +
+                "<style id=\"uhc-android-legacy-fit\">" +
+                "html,body{max-width:100vw!important;min-width:0!important;overflow-x:hidden!important;}" +
+                "body>*{max-width:100%!important;box-sizing:border-box!important;}" +
+                "img,video,object,embed,iframe,canvas{max-width:100%!important;}" +
+                "pre{white-space:pre-wrap!important;overflow-wrap:anywhere!important;}" +
+                "</style>" +
+                "<script>(function(){" +
+                "function fit(){try{" +
+                "document.body.style.zoom='';document.body.style.width='';" +
+                "var vw=document.documentElement.clientWidth||window.innerWidth;" +
+                "var w=Math.max(document.documentElement.scrollWidth,document.body.scrollWidth);" +
+                "if(w>vw+8){var z=Math.max(.55,Math.min(1,vw/w));" +
+                "document.body.style.zoom=String(z);document.body.style.width=(100/z)+'%';}" +
+                "}catch(e){}}" +
+                "window.addEventListener('load',function(){fit();setTimeout(fit,250);setTimeout(fit,1000);});" +
+                "window.addEventListener('resize',fit);" +
+                "})();<\/script>";
+
+        String lower = html.toLowerCase(Locale.US);
+        int headEnd = lower.indexOf("</head>");
+        if (headEnd >= 0) {
+            html = html.substring(0, headEnd) + injection + html.substring(headEnd);
+        } else {
+            int bodyStart = lower.indexOf("<body");
+            html = bodyStart >= 0
+                    ? html.substring(0, bodyStart) + injection + html.substring(bodyStart)
+                    : injection + html;
+        }
+
+        byte[] out = html.getBytes(StandardCharsets.ISO_8859_1);
+        Map<String, String> headers = new HashMap<>(source.headers);
+        headers.remove("Content-Length");
+        headers.put("Content-Length", Integer.toString(out.length));
+        headers.put("Cache-Control", "no-cache");
+        headers.put("Access-Control-Allow-Origin", "*");
+        return new WebResourceResponse(
+                "text/html",
+                null,
+                200,
+                "OK",
+                headers,
+                new ByteArrayInputStream(out)
+        );
     }
 
     private WebResourceResponse serveBundledApp(String path) throws IOException {
