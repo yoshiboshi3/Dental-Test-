@@ -144,9 +144,9 @@ public final class MainActivity extends Activity {
         assets.setTextSize(11);
         assets.setAlpha(0.78f);
         assets.setOnClickListener(v -> chooseAssetFolder());
-        FrameLayout.LayoutParams assetsParams = new FrameLayout.LayoutParams(dp(84), dp(44), Gravity.TOP | Gravity.END);
-        assetsParams.topMargin = dp(4);
-        assetsParams.rightMargin = dp(4);
+        FrameLayout.LayoutParams assetsParams = new FrameLayout.LayoutParams(dp(84), dp(44), Gravity.BOTTOM | Gravity.END);
+        assetsParams.bottomMargin = dp(8);
+        assetsParams.rightMargin = dp(8);
         root.addView(assets, assetsParams);
 
         applySystemBarInsets(root, 0, 0, 0, 0);
