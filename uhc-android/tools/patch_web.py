@@ -241,6 +241,62 @@ android_css = r"""
     width: 100% !important;
     max-width: 100vw !important;
   }
+  /*
+   * Final x2 Combo strategy: do NOT reflow or crop the two desktop pages.
+   * Keep the native 1660px composition intact and let x2Combo.vue apply one
+   * uniform CSS zoom so both halves, logs, arrows and banner fit the viewport.
+   */
+  html.uhc-android [data-component="x2Combo"] {
+    width: 1660px !important;
+    max-width: none !important;
+    min-width: 1660px !important;
+    overflow: visible !important;
+    transform-origin: top left !important;
+    margin: 0 !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .navBanners,
+  html.uhc-android [data-component="x2Combo"] .pageFrame {
+    width: 1660px !important;
+    max-width: none !important;
+    min-width: 1660px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    gap: 0 !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .navBanners .navSpacer {
+    display: block !important;
+    padding: 0 50px !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .pageContent {
+    width: auto !important;
+    max-width: 950px !important;
+    min-width: 650px !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .leftPage {
+    margin-right: 33px !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .mediaContent,
+  html.uhc-android [data-component="x2Combo"] .media {
+    width: auto !important;
+    max-width: none !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .panel,
+  html.uhc-android [data-component="x2Combo"] .panel img,
+  html.uhc-android [data-component="x2Combo"] .panel video,
+  html.uhc-android [data-component="x2Combo"] .panel canvas,
+  html.uhc-android [data-component="x2Combo"] iframe.mediaembed {
+    width: auto !important;
+    max-width: none !important;
+  }
+  html.uhc-android [data-component="x2Combo"] .textContent {
+    width: 600px !important;
+    min-width: 600px !important;
+    max-width: 600px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
 </style>
 <script>document.documentElement.classList.add("uhc-android");</script>
 """
@@ -305,6 +361,33 @@ new_x2_root = '<div class="pageBody customStyles" data-component="x2Combo">'
 if old_x2_root not in s:
     raise RuntimeError("x2Combo root element not found")
 s = s.replace(old_x2_root, new_x2_root, 1)
+
+# Preserve the exact desktop x2 composition and scale the WHOLE thing to one
+# Android viewport. CSS zoom participates in layout, unlike transform:scale,
+# so the page remains vertically scrollable and all links keep their hitboxes.
+x2_methods_marker = """  methods: {
+    keyNavEvent(dir) {"""
+if x2_methods_marker not in s:
+    raise RuntimeError("x2Combo methods marker not found")
+
+x2_lifecycle = """  mounted() {
+    this.__androidFitX2 = () => {
+      const host = this.$el.parentElement
+      const available = (host && host.clientWidth) || document.documentElement.clientWidth || window.innerWidth
+      const scale = Math.min(1, available / 1660)
+      this.$el.style.zoom = String(scale)
+      this.$el.style.width = "1660px"
+      this.$el.style.minWidth = "1660px"
+      this.$el.style.maxWidth = "none"
+    }
+    this.$nextTick(this.__androidFitX2)
+    window.addEventListener("resize", this.__androidFitX2)
+  },
+  beforeDestroy() {
+    if (this.__androidFitX2) window.removeEventListener("resize", this.__androidFitX2)
+  },
+"""
+s = s.replace(x2_methods_marker, x2_lifecycle + x2_methods_marker)
 write("src/components/SpecialPages/x2Combo.vue", s)
 
 # Restore local-only persistence. The hosted fork moved save/settings data to an
