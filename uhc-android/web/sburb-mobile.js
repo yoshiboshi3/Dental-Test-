@@ -68,6 +68,23 @@
     const d=e.data||{};
     if(d.type==="uhcSburbInput"){
       sendKey(d.down?"keydown":"keyup",Number(d.code),String(d.key||""));
+    } else if(d.type==="uhcSburbPointer"){
+      const stage=document.getElementById("SBURBStage") || document.querySelector("#SBURBgameDiv canvas") || keyboardTarget();
+      const r=stage.getBoundingClientRect ? stage.getBoundingClientRect() : {left:0,top:0,width:650,height:450};
+      const x=r.left + Math.max(0,Math.min(1,Number(d.nx)||0))*r.width;
+      const y=r.top + Math.max(0,Math.min(1,Number(d.ny)||0))*r.height;
+      const target=document.elementFromPoint(x,y) || stage;
+      const map={move:"mousemove",down:"mousedown",up:"mouseup",click:"click"};
+      const type=map[d.action];
+      if(type){
+        try{
+          target.dispatchEvent(new MouseEvent(type,{
+            bubbles:true,cancelable:true,view:window,
+            clientX:x,clientY:y,button:0,
+            buttons:(type==="mousedown"||type==="mousemove")?1:0
+          }));
+        }catch(_){}
+      }
     } else if(d.type==="uhcSburbMouseMode"){
       mouseMode=!!d.enabled;
     } else if(d.type==="uhcDamaraTranslate"){
@@ -295,6 +312,22 @@
       const timer=setInterval(()=>{ if(installSburbPatches()) clearInterval(timer); },100);
       setTimeout(()=>clearInterval(timer),15000);
     }
+
+    let damaraSeen=false;
+    const damaraTimer=setInterval(()=>{
+      try{
+        if(!damaraSeen && window.Sburb && Sburb.dialoger && Sburb.dialoger.talking){
+          const actor=String(Sburb.dialoger.actor||"").toLowerCase();
+          const txt=String((Sburb.dialoger.dialog && (Sburb.dialoger.dialog.__uhcOriginalText || Sburb.dialoger.dialog.text)) || "");
+          if(actor.indexOf("damara")===0 || /DAMARA:\s*/.test(txt)){
+            damaraSeen=true;
+            parentPost({type:"uhcDamaraSeen"});
+          }
+        }
+      }catch(_){}
+    },120);
+
+    window.addEventListener("pagehide",()=>clearInterval(damaraTimer),{once:true});
     parentPost({type:"uhcSburbReady"});
   }
 
