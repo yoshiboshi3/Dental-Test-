@@ -70,6 +70,11 @@ jobs:
           print('flags',flags)
           PY
 
+      - name: Fetch external Flash index for interaction tags
+        run: |
+          curl -fsSL https://www.bgreco.net/homestuck_s.html -o interactive-research/bgreco.html
+          grep -ni "interactive" interactive-research/bgreco.html | head -100 > interactive-research/bgreco-interactive-grep.txt || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: homestuck-interactive-research
