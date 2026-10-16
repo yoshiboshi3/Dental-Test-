@@ -65,7 +65,7 @@ jobs:
         env:
           ASSET_PACK_HREF: https://uhc-assets.local/
           ASSET_DIR: /assets/
-          APP_VERSION: 0.1.3-android
+          APP_VERSION: 0.1.4-android
           AUTH_SERVER_URL: ""
           NODE_OPTIONS: --max_old_space_size=8192
         run: |
@@ -82,6 +82,17 @@ jobs:
           rm -rf "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
           mkdir -p "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
           cp -a dist/. "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www/"
+
+          # The hosted fork normally downloads Ruffle from a CDN. Android has no
+          # INTERNET permission, so ship the fork's self-hosted Ruffle runtime.
+          mkdir -p "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www/ruffle"
+          cp -a src/imods/_twoToThree/js/ruffle/. "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www/ruffle/"
+          test -f "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www/ruffle/ruffle.js"
+
+          if grep -R "unpkg.com/@ruffle-rs/ruffle" dist; then
+            echo "Unexpected online Ruffle dependency remains in built frontend."
+            exit 1
+          fi
 
           echo "Bundled web files:"
           du -sh "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
@@ -104,11 +115,11 @@ jobs:
       - name: Package deliverables
         run: |
           mkdir -p deliverable
-          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.3-debug.apk
+          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.4-debug.apk
           cp uhc-android/README.md deliverable/README.md
           cp uhc-android/WEB_FRONTEND_COMMIT.txt deliverable/WEB_FRONTEND_COMMIT.txt
 
-          zip -qr deliverable/UHC-Android-v0.1.3-source.zip uhc-android .github/workflows/uhc-android-build.yml \
+          zip -qr deliverable/UHC-Android-v0.1.4-source.zip uhc-android .github/workflows/uhc-android-build.yml \
             -x 'uhc-android/app/build/*' \
                'uhc-android/.gradle/*' \
                'uhc-android/app/src/main/assets/www/*'
@@ -118,7 +129,7 @@ jobs:
       - name: Upload APK and source checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: UHC-Android-v0.1.3
+          name: UHC-Android-v0.1.4
           path: deliverable/*
           if-no-files-found: error
           retention-days: 7
