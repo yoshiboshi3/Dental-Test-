@@ -85,41 +85,104 @@
 
   function installTouchMouse(){
     const style=document.createElement("style");
-    style.textContent="#SBURBgameDiv,#SBURBStage,#SBURBgameDiv canvas{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}";
+    style.textContent="html,body,#SBURBgameDiv,#SBURBStage,#SBURBgameDiv canvas{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important} #SBURBStage{outline:none!important}";
     document.head.appendChild(style);
 
-    const mouse=(type,touch)=>{
-      const target=document.elementFromPoint(touch.clientX,touch.clientY) ||
-                   document.getElementById("SBURBStage") || keyboardTarget();
-      try {
-        target.dispatchEvent(new MouseEvent(type,{
-          bubbles:true,cancelable:true,view:window,
-          clientX:touch.clientX,clientY:touch.clientY,
-          screenX:touch.screenX,screenY:touch.screenY,
-          button:0,buttons:(type==="mouseup"||type==="click")?0:1
-        }));
-      } catch(_) {}
-    };
+    let pointerDown=false;
 
+    function stageForEvent(e){
+      const stage=document.getElementById("SBURBStage");
+      if(!stage)return null;
+      const r=stage.getBoundingClientRect();
+      if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)return null;
+      return {stage,r};
+    }
+
+    function legacyEvent(stage,r,e){
+      const x=(e.clientX-r.left)*(stage.width/Math.max(1,r.width));
+      const y=(e.clientY-r.top)*(stage.height/Math.max(1,r.height));
+      let ox=0,oy=0,cur=stage;
+      while(cur){ox+=cur.offsetLeft||0;oy+=cur.offsetTop||0;cur=cur.offsetParent;}
+      return {
+        pageX:ox+x,
+        pageY:oy+y,
+        clientX:e.clientX,
+        clientY:e.clientY,
+        preventDefault:function(){},
+        stopPropagation:function(){}
+      };
+    }
+
+    function directly(type,e){
+      const found=stageForEvent(e);
+      if(!found || !window.Sburb || !Sburb.Mouse)return false;
+      const fake=legacyEvent(found.stage,found.r,e);
+      try{
+        if(typeof Sburb.onMouseMove==="function")Sburb.onMouseMove(fake,found.stage);
+        if(type==="down"){
+          pointerDown=true;
+          if(typeof Sburb.onMouseDown==="function")Sburb.onMouseDown(fake,found.stage);
+          else Sburb.Mouse.down=true;
+        }else if(type==="up"){
+          pointerDown=false;
+          if(typeof Sburb.onMouseUp==="function")Sburb.onMouseUp(fake,found.stage);
+          else Sburb.Mouse.down=false;
+        }
+        try{
+          const sel=window.getSelection && window.getSelection();
+          if(sel)sel.removeAllRanges();
+        }catch(_){}
+        return true;
+      }catch(err){
+        report("MOUSE "+String(err));
+        return false;
+      }
+    }
+
+    document.addEventListener("pointerdown",e=>{
+      if(directly("down",e)){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },true);
+
+    document.addEventListener("pointerup",e=>{
+      if(directly("up",e)){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },true);
+
+    document.addEventListener("pointercancel",e=>{
+      if(pointerDown){
+        const found=stageForEvent(e);
+        if(found && window.Sburb && Sburb.Mouse)Sburb.Mouse.down=false;
+        pointerDown=false;
+      }
+    },true);
+
+    document.addEventListener("pointermove",e=>{
+      if(!mouseMode && !pointerDown)return;
+      if(directly("move",e)){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },true);
+
+    // Older Android WebViews sometimes send touch without pointer events.
     document.addEventListener("touchstart",e=>{
       if(!e.touches||!e.touches.length)return;
-      e.preventDefault();
-      mouse("mousemove",e.touches[0]);
-      mouse("mousedown",e.touches[0]);
+      const t=e.touches[0];
+      if(directly("down",t))e.preventDefault();
     },{passive:false,capture:true});
-
     document.addEventListener("touchend",e=>{
-      const t=(e.changedTouches&&e.changedTouches[0]);
-      if(!t)return;
-      e.preventDefault();
-      mouse("mouseup",t);
-      mouse("click",t);
+      if(!e.changedTouches||!e.changedTouches.length)return;
+      const t=e.changedTouches[0];
+      if(directly("up",t))e.preventDefault();
     },{passive:false,capture:true});
-
     document.addEventListener("touchmove",e=>{
-      if(!mouseMode||!e.touches||!e.touches.length)return;
-      e.preventDefault();
-      mouse("mousemove",e.touches[0]);
+      if((!mouseMode&&!pointerDown)||!e.touches||!e.touches.length)return;
+      if(directly("move",e.touches[0]))e.preventDefault();
     },{passive:false,capture:true});
   }
 
@@ -215,7 +278,7 @@
     proto.setText=function(text){
       const raw=String(text==null?"":text);
       this.__uhcOriginalText=raw;
-      if(/DAMARA:\s*.*[\u3040-\u30ff\u3400-\u9fff]/.test(raw)){
+      if(/damara/i.test(raw) && CJK.test(raw)){
         parentPost({type:"uhcDamaraSeen"});
       }
       let next=translateDamara ? translateDamaraText(raw) : raw;
