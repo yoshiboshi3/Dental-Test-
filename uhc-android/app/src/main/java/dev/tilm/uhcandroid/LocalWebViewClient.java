@@ -114,7 +114,7 @@ final class LocalWebViewClient extends WebViewClient {
                 "}catch(e){}}" +
                 "window.addEventListener('load',function(){fit();setTimeout(fit,250);setTimeout(fit,1000);});" +
                 "window.addEventListener('resize',fit);" +
-                "})();<\/script>";
+                "})();</script>";
 
         String lower = html.toLowerCase(Locale.US);
         int headEnd = lower.indexOf("</head>");
