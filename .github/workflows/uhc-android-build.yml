@@ -65,7 +65,7 @@ jobs:
         env:
           ASSET_PACK_HREF: https://uhc-assets.local/
           ASSET_DIR: /assets/
-          APP_VERSION: 0.1.9-android
+          APP_VERSION: 0.1.10-android
           AUTH_SERVER_URL: ""
           NODE_OPTIONS: --max_old_space_size=8192
         run: |
@@ -124,20 +124,20 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
             --key /tmp/uhc-sign/testkey.pk8 \
             --cert /tmp/uhc-sign/testkey.x509.pem \
-            --out deliverable/UHC-Android-v0.1.9.apk \
+            --out deliverable/UHC-Android-v0.1.10.apk \
             /tmp/uhc-sign/aligned.apk
 
       - name: Inspect APK
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging deliverable/UHC-Android-v0.1.9.apk | head -20
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs deliverable/UHC-Android-v0.1.9.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging deliverable/UHC-Android-v0.1.10.apk | head -20
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs deliverable/UHC-Android-v0.1.10.apk
 
       - name: Package deliverables
         run: |
           cp uhc-android/README.md deliverable/README.md
           cp uhc-android/WEB_FRONTEND_COMMIT.txt deliverable/WEB_FRONTEND_COMMIT.txt
 
-          zip -qr deliverable/UHC-Android-v0.1.9-source.zip uhc-android .github/workflows/uhc-android-build.yml \
+          zip -qr deliverable/UHC-Android-v0.1.10-source.zip uhc-android .github/workflows/uhc-android-build.yml \
             -x 'uhc-android/app/build/*' \
                'uhc-android/.gradle/*' \
                'uhc-android/app/src/main/assets/www/*'
@@ -147,7 +147,7 @@ jobs:
       - name: Upload APK and source checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: UHC-Android-v0.1.9
+          name: UHC-Android-v0.1.10
           path: deliverable/*
           if-no-files-found: error
           retention-days: 7
