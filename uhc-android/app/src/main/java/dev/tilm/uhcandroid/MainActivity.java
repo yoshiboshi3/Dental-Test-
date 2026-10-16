@@ -140,7 +140,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         Button assets = new Button(this);
-        assets.setText("Assets · v0.1.14");
+        assets.setText("Assets · v0.1.15");
         assets.setTextSize(11);
         assets.setAlpha(0.78f);
         assets.setOnClickListener(v -> chooseAssetFolder());
