@@ -303,58 +303,116 @@ android_css = r"""
 <script>document.documentElement.classList.add("uhc-android");</script>
 <style id="uhc-android-shell-overlays">
   #uhcSburbController {
-    position:fixed; left:10px; right:10px; bottom:8px; height:138px;
+    position:fixed; left:12px; right:12px; bottom:8px; height:132px;
     z-index:2147483000; display:none; pointer-events:none;
     font-family:monospace; -webkit-user-select:none; user-select:none;
   }
   #uhcSburbController.visible { display:block; }
   #uhcSburbController * { box-sizing:border-box; }
   #uhcSburbController .plate {
-    position:absolute; inset:0; border:2px solid rgba(88,255,244,.60);
-    border-radius:20px; background:linear-gradient(180deg,rgba(11,19,30,.34),rgba(4,9,17,.72));
+    position:absolute; inset:0;
+    border:2px solid rgba(88,255,244,.62); border-radius:18px;
+    background:linear-gradient(180deg,rgba(11,19,30,.30),rgba(4,9,17,.74));
     box-shadow:inset 0 0 0 2px rgba(255,0,170,.10),0 4px 18px rgba(0,0,0,.35);
     backdrop-filter:blur(2px);
   }
   #uhcSburbController .brand {
     position:absolute; left:50%; top:7px; transform:translateX(-50%);
     color:rgba(210,255,250,.88); font:bold 10px monospace; letter-spacing:2px;
-    text-shadow:0 1px #000; pointer-events:none;
+    text-shadow:0 1px #000; pointer-events:none; white-space:nowrap;
   }
   #uhcSburbController button {
-    pointer-events:auto; position:absolute; border:2px solid rgba(255,255,255,.78);
-    background:rgba(9,14,22,.78); color:#fff; font:bold 18px monospace;
+    pointer-events:auto; position:absolute; border:2px solid rgba(255,255,255,.80);
+    background:rgba(9,14,22,.82); color:#fff; font:bold 17px monospace;
     touch-action:none; -webkit-tap-highlight-color:transparent;
     box-shadow:inset 0 -3px rgba(0,0,0,.35);
   }
+
+  /* Joystick: far left. */
   #uhcSburbController .joy {
-    pointer-events:auto; position:absolute; left:12px; bottom:10px; width:108px; height:108px;
-    border-radius:54px; border:3px solid rgba(77,235,255,.82);
-    background:radial-gradient(circle,rgba(27,52,68,.72),rgba(4,10,18,.84));
+    pointer-events:auto; position:absolute; left:16px; bottom:12px;
+    width:100px; height:100px; border-radius:50px;
+    border:3px solid rgba(77,235,255,.84);
+    background:radial-gradient(circle,rgba(27,52,68,.72),rgba(4,10,18,.86));
     touch-action:none; box-shadow:inset 0 0 16px rgba(0,220,255,.28);
   }
   #uhcSburbController .joy:after {
-    content:''; position:absolute; left:36px; top:36px; width:32px; height:32px;
-    border-radius:50%; background:rgba(230,255,255,.88); border:2px solid rgba(0,0,0,.55);
+    content:''; position:absolute; left:34px; top:34px; width:28px; height:28px;
+    border-radius:50%; background:rgba(230,255,255,.90); border:2px solid rgba(0,0,0,.55);
   }
   #uhcSburbController .joyLabel {
-    position:absolute; left:41px; bottom:53px; color:#061016; font:bold 8px monospace;
+    position:absolute; left:36px; bottom:47px; color:#061016; font:bold 7px monospace;
     z-index:1; pointer-events:none;
   }
-  #uhcSburbController .u{left:154px;bottom:82px;width:42px;height:42px;border-radius:9px}
-  #uhcSburbController .d{left:154px;bottom:10px;width:42px;height:42px;border-radius:9px}
-  #uhcSburbController .l{left:118px;bottom:46px;width:42px;height:42px;border-radius:9px}
-  #uhcSburbController .r{left:190px;bottom:46px;width:42px;height:42px;border-radius:9px}
-  #uhcSburbController .abxy{position:absolute;right:10px;bottom:10px;width:145px;height:112px;pointer-events:none}
-  #uhcSburbController .a,#uhcSburbController .b,#uhcSburbController .x,#uhcSburbController .y{
-    width:46px;height:46px;border-radius:50%;font-size:17px
+
+  /* D-pad: a separate clean cross, never overlapping joystick. */
+  #uhcSburbController .u{left:162px;bottom:78px;width:40px;height:40px;border-radius:8px}
+  #uhcSburbController .d{left:162px;bottom:12px;width:40px;height:40px;border-radius:8px}
+  #uhcSburbController .l{left:129px;bottom:45px;width:40px;height:40px;border-radius:8px}
+  #uhcSburbController .r{left:195px;bottom:45px;width:40px;height:40px;border-radius:8px}
+
+  /* Utility keys live in the middle with their own space. */
+  #uhcSburbController .utility {
+    position:absolute; left:50%; top:32px; transform:translateX(-50%);
+    width:178px; height:76px; pointer-events:none;
   }
-  #uhcSburbController .a{right:0;bottom:33px;border-color:#80ff9a;color:#9affaa}
-  #uhcSburbController .b{right:40px;bottom:0;border-color:#ff7272;color:#ff9d9d}
-  #uhcSburbController .x{right:40px;bottom:66px;border-color:#72b9ff;color:#a7d4ff}
-  #uhcSburbController .y{right:80px;bottom:33px;border-color:#ffe36b;color:#fff1a5}
-  #uhcSburbController .shoulder{width:56px;height:28px;border-radius:9px;font-size:9px;bottom:101px}
-  #uhcSburbController .shift{left:254px;border-color:#cf8cff;color:#e2b9ff}
-  #uhcSburbController .enter{right:170px;border-color:#70ffe8;color:#a5fff2}
+  #uhcSburbController .shoulder {
+    width:76px; height:34px; border-radius:9px; font-size:10px; top:0;
+  }
+  #uhcSburbController .shift{left:0;border-color:#cf8cff;color:#e2b9ff}
+  #uhcSburbController .enter{right:0;border-color:#70ffe8;color:#a5fff2}
+  #uhcSburbController .utilLabel {
+    position:absolute; left:0; right:0; bottom:5px; text-align:center;
+    color:rgba(220,255,250,.72); font:bold 8px monospace; letter-spacing:1px;
+  }
+
+  /* ABXY: far right, with generous spacing. */
+  #uhcSburbController .abxy {
+    position:absolute; right:16px; bottom:10px; width:142px; height:108px;
+    pointer-events:none;
+  }
+  #uhcSburbController .a,#uhcSburbController .b,#uhcSburbController .x,#uhcSburbController .y{
+    width:44px;height:44px;border-radius:50%;font-size:16px
+  }
+  #uhcSburbController .a{right:0;bottom:32px;border-color:#80ff9a;color:#9affaa}
+  #uhcSburbController .b{right:39px;bottom:0;border-color:#ff7272;color:#ff9d9d}
+  #uhcSburbController .x{right:39px;bottom:64px;border-color:#72b9ff;color:#a7d4ff}
+  #uhcSburbController .y{right:78px;bottom:32px;border-color:#ffe36b;color:#fff1a5}
+
+  @media (max-width:700px) {
+    #uhcSburbController { left:4px; right:4px; height:122px; }
+    #uhcSburbController .joy { width:90px;height:90px;left:8px;bottom:14px; }
+    #uhcSburbController .joy:after{left:30px;top:30px;width:26px;height:26px}
+    #uhcSburbController .joyLabel{left:31px;bottom:43px}
+    #uhcSburbController .u{left:129px;bottom:72px}
+    #uhcSburbController .d{left:129px;bottom:8px}
+    #uhcSburbController .l{left:97px;bottom:40px}
+    #uhcSburbController .r{left:161px;bottom:40px}
+    #uhcSburbController .utility{width:144px;top:30px}
+    #uhcSburbController .shoulder{width:64px}
+    #uhcSburbController .abxy{right:8px;transform:scale(.92);transform-origin:right bottom}
+  }
+
+  #uhcHorizontalHint {
+    position:fixed; left:50%; bottom:18px; transform:translate(-50%,10px);
+    z-index:2147483050; opacity:0; pointer-events:none;
+    border:2px solid rgba(255,255,255,.75); border-radius:18px;
+    padding:9px 16px; background:rgba(10,10,10,.76); color:white;
+    font:bold 12px monospace; letter-spacing:1px;
+    transition:opacity .35s ease,transform .35s ease;
+    box-shadow:0 3px 14px rgba(0,0,0,.34);
+  }
+  #uhcHorizontalHint.visible { opacity:1; transform:translate(-50%,0); }
+
+  #uhcArrowMercy {
+    position:fixed; right:18px; bottom:160px; z-index:2147483150;
+    opacity:0; pointer-events:none; transform:translateY(12px);
+    transition:opacity .8s ease,transform .8s ease;
+    border:2px solid #fff; border-radius:12px; padding:12px 16px;
+    background:rgba(0,0,0,.82); color:#fff; font:bold 13px monospace;
+    box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  #uhcArrowMercy.visible { opacity:1; pointer-events:auto; transform:translateY(0); }
 
   #uhcSpecialScrollRail {
     position:fixed; right:8px; top:50%; transform:translateY(-50%);
@@ -383,48 +441,84 @@ android_css = r"""
 </style>
 <script>
 (function(){
-  let activeSburbWindow=null, controller=null, scrollRail=null, activeSpecialTab=null;
+  const GAME_FLASH_IDS=new Set([
+    '00253','00476','01358','02791','03077','03318','03435','03692',
+    '04817','04822','04824','05424','05756'
+  ]);
+  let activeGameWindow=null, activeGameKind=null, activeGameFlashId=null;
+  let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
+  let arrowMercy=null, arrowTapCount=0;
 
   function send(code,key,down){
-    if(!activeSburbWindow) return;
-    try{activeSburbWindow.postMessage({type:'uhcSburbInput',code:code,key:key,down:down},'*');}catch(e){}
+    if(!activeGameWindow)return;
+    const type=(activeGameKind==='ruffle')?'uhcFlashInput':'uhcSburbInput';
+    try{activeGameWindow.postMessage({type:type,code:code,key:key,down:down},'*');}catch(e){}
+    if(activeGameFlashId==='05756'&&code===39&&down){
+      arrowTapCount++;
+      if(arrowTapCount>=100)ensureArrowMercy().classList.add('visible');
+    }
   }
   function bindButton(btn,code,key){
     let down=false;
     const press=e=>{e.preventDefault();if(down)return;down=true;send(code,key,true);};
     const release=e=>{if(e)e.preventDefault();if(!down)return;down=false;send(code,key,false);};
-    btn.addEventListener('pointerdown',press); btn.addEventListener('pointerup',release);
-    btn.addEventListener('pointercancel',release); btn.addEventListener('pointerleave',release);
+    btn.addEventListener('pointerdown',press);btn.addEventListener('pointerup',release);
+    btn.addEventListener('pointercancel',release);btn.addEventListener('pointerleave',release);
     btn.addEventListener('contextmenu',e=>e.preventDefault());
   }
   function bindJoystick(el){
     const held={87:false,65:false,83:false,68:false};
     const set=(code,on,key)=>{if(held[code]===on)return;held[code]=on;send(code,key,on);};
     const update=e=>{
-      const r=el.getBoundingClientRect(), x=e.clientX-(r.left+r.width/2), y=e.clientY-(r.top+r.height/2), dead=13;
-      set(65,x<-dead,'a'); set(68,x>dead,'d'); set(87,y<-dead,'w'); set(83,y>dead,'s');
+      const r=el.getBoundingClientRect(),x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2),dead=13;
+      set(65,x<-dead,'a');set(68,x>dead,'d');set(87,y<-dead,'w');set(83,y>dead,'s');
     };
     const clear=()=>{set(65,false,'a');set(68,false,'d');set(87,false,'w');set(83,false,'s');};
     el.addEventListener('pointerdown',e=>{e.preventDefault();try{el.setPointerCapture(e.pointerId)}catch(_){}update(e);});
     el.addEventListener('pointermove',e=>{if(e.buttons||e.pressure>0)update(e);});
-    el.addEventListener('pointerup',e=>{e.preventDefault();clear();}); el.addEventListener('pointercancel',clear);
+    el.addEventListener('pointerup',e=>{e.preventDefault();clear();});
+    el.addEventListener('pointercancel',clear);
   }
   function ensureController(){
     if(controller)return controller;
-    controller=document.createElement('div'); controller.id='uhcSburbController';
+    controller=document.createElement('div');controller.id='uhcSburbController';
     controller.innerHTML='<div class="plate"></div><div class="brand">SBURB CONTROLLER</div>'+
       '<div class="joy"><span class="joyLabel">MOVE</span></div>'+
       '<button class="u">▲</button><button class="d">▼</button><button class="l">◀</button><button class="r">▶</button>'+
-      '<div class="abxy"><button class="a">A</button><button class="b">B</button><button class="x">X</button><button class="y">Y</button></div>'+
-      '<button class="shoulder shift">SHIFT</button><button class="shoulder enter">ENTER</button>';
+      '<div class="utility"><button class="shoulder shift">SHIFT</button><button class="shoulder enter">ENTER</button><div class="utilLabel">EXTRA INPUTS</div></div>'+
+      '<div class="abxy"><button class="a">A</button><button class="b">B</button><button class="x">X</button><button class="y">Y</button></div>';
     document.body.appendChild(controller);
     bindJoystick(controller.querySelector('.joy'));
-    bindButton(controller.querySelector('.u'),38,'ArrowUp'); bindButton(controller.querySelector('.d'),40,'ArrowDown');
-    bindButton(controller.querySelector('.l'),37,'ArrowLeft'); bindButton(controller.querySelector('.r'),39,'ArrowRight');
-    bindButton(controller.querySelector('.a'),32,' '); bindButton(controller.querySelector('.b'),17,'Control');
-    bindButton(controller.querySelector('.x'),88,'x'); bindButton(controller.querySelector('.y'),90,'z');
-    bindButton(controller.querySelector('.shift'),16,'Shift'); bindButton(controller.querySelector('.enter'),13,'Enter');
+    bindButton(controller.querySelector('.u'),38,'ArrowUp');bindButton(controller.querySelector('.d'),40,'ArrowDown');
+    bindButton(controller.querySelector('.l'),37,'ArrowLeft');bindButton(controller.querySelector('.r'),39,'ArrowRight');
+    bindButton(controller.querySelector('.a'),32,' ');bindButton(controller.querySelector('.b'),17,'Control');
+    bindButton(controller.querySelector('.x'),88,'x');bindButton(controller.querySelector('.y'),90,'z');
+    bindButton(controller.querySelector('.shift'),16,'Shift');bindButton(controller.querySelector('.enter'),13,'Enter');
     return controller;
+  }
+  function ensureHorizontalHint(){
+    if(horizontalHint)return horizontalHint;
+    horizontalHint=document.createElement('div');horizontalHint.id='uhcHorizontalHint';
+    horizontalHint.textContent='⇠  SCROLL SIDEWAYS  ⇢';
+    document.body.appendChild(horizontalHint);
+    return horizontalHint;
+  }
+  function ensureArrowMercy(){
+    if(arrowMercy)return arrowMercy;
+    arrowMercy=document.createElement('button');arrowMercy.id='uhcArrowMercy';
+    arrowMercy.textContent='OK, THAT\'S ENOUGH →';
+    arrowMercy.addEventListener('click',()=>{
+      if(activeGameFlashId!=='05756')return;
+      let remaining=Math.max(0,1111-arrowTapCount),sent=0;
+      const batch=()=>{
+        for(let i=0;i<18&&sent<remaining;i++,sent++){send(39,'ArrowRight',true);send(39,'ArrowRight',false);}
+        if(sent<remaining)requestAnimationFrame(batch);
+      };
+      batch();
+      arrowMercy.classList.remove('visible');
+    });
+    document.body.appendChild(arrowMercy);
+    return arrowMercy;
   }
 
   function ensureScrollRail(){
@@ -469,23 +563,50 @@ android_css = r"""
       }
     }
     ensureScrollRail().classList.toggle('visible',crowbar);
+
+    const route=window.location.pathname;
+    const isHScroll=/\/homestuck\/(6948|6950|6957)(?:\/|$)/.test(route);
+    ensureHorizontalHint().classList.toggle('visible',isHScroll);
+  }
+
+  function discoverRuffleGame(){
+    let found=null;
+    document.querySelectorAll('iframe.mediaembed[data-flash-id]').forEach(f=>{
+      const id=f.getAttribute('data-flash-id')||'';
+      if(GAME_FLASH_IDS.has(id)&&document.contains(f))found={window:f.contentWindow,id:id};
+    });
+    if(found){
+      if(activeGameWindow!==found.window||activeGameKind!=='ruffle'){
+        activeGameWindow=found.window;activeGameKind='ruffle';activeGameFlashId=found.id;
+        arrowTapCount=0;if(arrowMercy)arrowMercy.classList.remove('visible');
+      }
+      ensureController().classList.add('visible');
+      return true;
+    }
+    return false;
   }
 
   window.addEventListener('message',e=>{
     const d=e.data||{};
     if(d.type==='uhcSburbReady'){
-      activeSburbWindow=e.source;
+      activeGameWindow=e.source;activeGameKind='sburb';activeGameFlashId=null;
       ensureController().classList.add('visible');
-    }else if(d.type==='uhcSburbGone'&&e.source===activeSburbWindow){
-      activeSburbWindow=null;if(controller)controller.classList.remove('visible');
+    }else if(d.type==='uhcSburbGone'&&e.source===activeGameWindow&&activeGameKind==='sburb'){
+      activeGameWindow=null;activeGameKind=null;activeGameFlashId=null;
+      if(controller)controller.classList.remove('visible');
     }
   });
 
   setInterval(()=>{
-    if(activeSburbWindow){
+    const hasRuffle=discoverRuffleGame();
+    if(!hasRuffle&&activeGameKind==='sburb'&&activeGameWindow){
       let alive=false;
-      document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentWindow===activeSburbWindow&&document.contains(f))alive=true;}catch(e){}});
-      if(!alive){activeSburbWindow=null;if(controller)controller.classList.remove('visible');}
+      document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentWindow===activeGameWindow&&document.contains(f))alive=true;}catch(e){}});
+      if(!alive){activeGameWindow=null;activeGameKind=null;if(controller)controller.classList.remove('visible');}
+    }else if(!hasRuffle&&activeGameKind==='ruffle'){
+      activeGameWindow=null;activeGameKind=null;activeGameFlashId=null;
+      if(controller)controller.classList.remove('visible');
+      if(arrowMercy)arrowMercy.classList.remove('visible');
     }
     fitSpecialPages();
   },350);
@@ -521,6 +642,57 @@ write("src/App.vue", s)
 # Bundle the fork's self-hosted Ruffle files into the APK and point every SWF
 # iframe at that local runtime instead.
 s = read("src/components/UIElements/MediaEmbed.vue")
+# Add a controller message bridge inside every Ruffle iframe. The shell only
+# activates it on known interactive game pages.
+flash_script_marker = """          // JS Enhancements: ${this.$localData.settings.jsFlashes}
+          // HQ Audio: ${this.$localData.settings.hqAudio}
+          """
+flash_script_replacement = """          // JS Enhancements: ${this.$localData.settings.jsFlashes}
+          // HQ Audio: ${this.$localData.settings.hqAudio}
+
+          window.addEventListener("message", (event) => {
+            const d = event.data || {};
+            if (d.type !== "uhcFlashInput") return;
+            const type = d.down ? "keydown" : "keyup";
+            const opts = {
+              key: d.key || "",
+              code: d.key || "",
+              keyCode: Number(d.code) || 0,
+              which: Number(d.code) || 0,
+              bubbles: true,
+              cancelable: true
+            };
+            let ev;
+            try {
+              ev = new KeyboardEvent(type, opts);
+              Object.defineProperty(ev, "keyCode", { value: opts.keyCode });
+              Object.defineProperty(ev, "which", { value: opts.which });
+            } catch (e) {
+              ev = new Event(type, { bubbles: true, cancelable: true });
+              try {
+                Object.defineProperty(ev, "keyCode", { value: opts.keyCode });
+                Object.defineProperty(ev, "which", { value: opts.which });
+                Object.defineProperty(ev, "key", { value: opts.key });
+              } catch (_) {}
+            }
+            const targets = [
+              window,
+              document,
+              document.body,
+              document.querySelector("ruffle-player"),
+              document.querySelector("ruffle-embed"),
+              document.querySelector("object")
+            ].filter(Boolean);
+            targets.forEach(t => {
+              try { t.dispatchEvent(ev); } catch (_) {}
+            });
+          });
+          """
+if flash_script_marker not in s:
+    raise RuntimeError("MediaEmbed flash src script marker not found")
+s = s.replace(flash_script_marker, flash_script_replacement, 1)
+
+
 ruffle_start = s.index("        let scriptTag;")
 ruffle_end = s.index("        // Inject Ruffle config", ruffle_start)
 s = (
