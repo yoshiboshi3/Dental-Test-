@@ -425,7 +425,9 @@ x2_lifecycle = """  mounted() {
       const available = (host && host.clientWidth) || document.documentElement.clientWidth || window.innerWidth
       const fit = Math.min(1, available / 1660)
       const saved = Math.max(0.60, Math.min(1.80, Number(this.$localData.settings.x2ComboZoomPercent || 100) / 100))
-      const pinch = Math.max(0.60, Math.min(2.50, Number(this.__androidPinchScale || 1)))
+      const pinch = this.$localData.settings.x2ComboAllowUserZoom === false
+        ? 1
+        : Math.max(0.60, Math.min(2.50, Number(this.__androidPinchScale || 1)))
       const scale = fit * saved * pinch
       this.$el.style.zoom = String(scale)
       this.$el.style.width = "1660px"
@@ -440,12 +442,14 @@ x2_lifecycle = """  mounted() {
     }
 
     this.__androidTouchStart = e => {
+      if (this.$localData.settings.x2ComboAllowUserZoom === false) return
       if (e.touches && e.touches.length === 2) {
         this.__androidPinchStartDistance = distance(e.touches)
         this.__androidPinchStartScale = this.__androidPinchScale || 1
       }
     }
     this.__androidTouchMove = e => {
+      if (this.$localData.settings.x2ComboAllowUserZoom === false) return
       if (e.touches && e.touches.length === 2 && this.__androidPinchStartDistance > 0) {
         e.preventDefault()
         const ratio = distance(e.touches) / this.__androidPinchStartDistance
@@ -484,6 +488,7 @@ zoom_marker = """  ruffleFallback: true,
   // Dynamically enable mods based on what's available in the asset pack"""
 zoom_replacement = """  ruffleFallback: true,
   x2ComboZoomPercent: 100,
+  x2ComboAllowUserZoom: true,
 
   // Dynamically enable mods based on what's available in the asset pack"""
 if zoom_marker not in s:
@@ -500,7 +505,7 @@ settings_card = """    <div class="card">
         <h2>2x Combo Layout</h2>
         <p class="settingDesc">
           Set the default size of Act 6 Act 5's dual-page x2 Combo layout.
-          You can also pinch-zoom temporarily while reading those pages.
+          The preview page also includes an "Allow user to zoom" toggle, enabled by default.
         </p>
         <p><a href="/x2-combo-preview">Open 2x Combo Preview</a></p>
       </div>
@@ -515,15 +520,18 @@ write("src/components/SystemPages/Settings.vue", s)
 # Dedicated x2 preview/settings page.
 x2_preview = r'''<template>
   <GenericCardPage>
-    <div class="card previewCard">
-      <h2>2x Combo Preview</h2>
-      <p>
-        100% means both original 1660px-wide pages are fitted exactly to your
-        available screen width. Raise it if you prefer larger panels and are
-        willing to pan horizontally.
-      </p>
-
-      <div class="sliderRow">
+    <div class="x2SettingsBar">
+      <div class="title">2x Combo Preview</div>
+      <label class="zoomToggle">
+        <input
+          type="checkbox"
+          v-model="$localData.settings.x2ComboAllowUserZoom"
+          @change="save"
+        />
+        Allow user to zoom
+      </label>
+      <label class="slider">
+        Default zoom
         <input
           type="range"
           min="60"
@@ -534,46 +542,50 @@ x2_preview = r'''<template>
           @change="save"
         />
         <strong>{{ $localData.settings.x2ComboZoomPercent || 100 }}%</strong>
-        <button @click="reset">Reset</button>
-      </div>
+      </label>
+      <button @click="reset">Reset</button>
+      <a href="/settings">Back to Settings</a>
+    </div>
 
-      <div class="previewViewport" ref="viewport">
-        <div class="previewStage" :style="{ zoom: previewZoom }">
-          <div class="previewHeader">ACT 6 ACT 5 ACT 1 x2 COMBO!!!</div>
-          <div class="previewNav">
-            <span>HOMESTUCK COLLECTION · HELP · MAP · LOG</span>
-            <span>HOMESTUCK COLLECTION · HELP · MAP · LOG</span>
-          </div>
-          <div class="previewPages">
-            <section>
-              <div class="arrow">&gt; ==&gt;</div>
-              <div class="fakeArt leftArt">LEFT PAGE</div>
-              <div class="log">
-                TT: Is it still going on?<br />
-                GG: No, it stopped.<br />
-                TT: What do you think it was?
-              </div>
-              <div class="bottomArrow">↖ back to top</div>
-            </section>
-            <section>
-              <div class="arrow">&gt; ==&gt;</div>
-              <div class="fakeArt rightArt">RIGHT PAGE</div>
-              <div class="log">
-                GG: Doesn't matter.<br />
-                TT: Maybe it was like, tidal forces.<br />
-                GG: Um. Yeah let's say that.
-              </div>
-              <div class="bottomArrow">next page ==&gt;</div>
-            </section>
-          </div>
+    <div class="previewHost" ref="viewport">
+      <div class="previewStage" :style="{ zoom: previewZoom }">
+        <div class="previewHeader">ACT 6 ACT 5 ACT 1 x2 COMBO!!!</div>
+        <div class="previewNav">
+          <span>HOMESTUCK COLLECTION · HELP · MAP · LOG · SEARCH</span>
+          <span>HOMESTUCK COLLECTION · HELP · MAP · LOG · SEARCH</span>
+        </div>
+        <div class="previewPages">
+          <section>
+            <div class="arrow">&gt; ==&gt;</div>
+            <div class="fakeArt leftArt">
+              <div class="moon moonLeft"></div>
+              <div class="chain"></div>
+            </div>
+            <div class="log">
+              <button>Hide Pesterlog</button><br /><br />
+              <span class="tt">TT: Is it still going on?</span><br />
+              <span class="gg">GG: No, it stopped.</span><br />
+              <span class="tt">TT: What do you think it was?</span><br />
+              <span class="gg">GG: I don't know. Maybe an earthquake?</span>
+            </div>
+            <div class="bottomArrow">&gt; ==&gt; &nbsp;&nbsp; ↖ back to top</div>
+          </section>
+          <section>
+            <div class="arrow">&gt; ==&gt;</div>
+            <div class="fakeArt rightArt">
+              <div class="moon moonRight"></div>
+              <div class="chain"></div>
+            </div>
+            <div class="log">
+              <button>Hide Pesterlog</button><br /><br />
+              <span class="gg">GG: Doesn't matter.</span><br />
+              <span class="tt">TT: Maybe it was like, tidal forces.</span><br />
+              <span class="gg">GG: Um. Yeah let's say that.</span>
+            </div>
+            <div class="bottomArrow">&gt; ==&gt; ==&gt; &nbsp;&nbsp; next page</div>
+          </section>
         </div>
       </div>
-
-      <p class="hint">
-        This setting is global. Pinch zoom on a real x2 Combo page is temporary
-        and does not overwrite this default.
-      </p>
-      <p><a href="/settings">← Back to Settings</a></p>
     </div>
   </GenericCardPage>
 </template>
@@ -614,6 +626,7 @@ export default {
     },
     reset() {
       this.$localData.settings.x2ComboZoomPercent = 100;
+      this.$localData.settings.x2ComboAllowUserZoom = true;
       this.save();
     }
   }
@@ -621,24 +634,74 @@ export default {
 </script>
 
 <style scoped>
-.previewCard { width: 100%; max-width: 1100px; box-sizing: border-box; }
-.sliderRow { display:flex; gap:14px; align-items:center; margin:20px 0; flex-wrap:wrap; }
-.sliderRow input { flex:1 1 420px; }
-.previewViewport { width:100%; max-width:100%; overflow:auto; border:2px solid #888; background:#535353; min-height:480px; box-sizing:border-box; }
-.previewStage { width:1660px; min-width:1660px; transform-origin:top left; background:#535353; font-family:"Courier New", monospace; }
-.previewHeader { width:1660px; box-sizing:border-box; text-align:center; padding:18px; font-size:42px; font-weight:bold; background:#222; color:#ffd84a; }
-.previewNav { display:flex; width:1660px; box-sizing:border-box; justify-content:space-around; padding:8px; background:#666; color:white; font:bold 14px Arial; }
-.previewPages { display:flex; gap:33px; justify-content:center; align-items:flex-start; padding:12px 0 30px; }
+.x2SettingsBar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+  min-height: 62px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: rgba(238,238,238,.96);
+  border-top: 1px solid #aaa;
+  border-bottom: 1px solid #888;
+  color: #111;
+  font: 14px Verdana, Arial, sans-serif;
+}
+.x2SettingsBar .title { font-weight: bold; font-size: 18px; }
+.x2SettingsBar .slider { display:flex; align-items:center; gap:8px; }
+.x2SettingsBar .slider input { width:min(42vw,420px); }
+.x2SettingsBar a { color:#03c; }
+.previewHost {
+  width:100%;
+  max-width:100%;
+  overflow:auto;
+  background:#535353;
+  align-self:stretch;
+  min-height:100vh;
+}
+.previewStage {
+  width:1660px;
+  min-width:1660px;
+  transform-origin:top left;
+  background:#535353;
+  font-family:"Courier New", monospace;
+}
+.previewHeader {
+  width:1660px; box-sizing:border-box; text-align:center; padding:16px;
+  font-size:42px; font-weight:bold; background:#222; color:#ffd84a;
+}
+.previewNav {
+  display:flex; width:1660px; box-sizing:border-box; justify-content:space-around;
+  padding:8px; background:#666; color:white; font:bold 13px Arial;
+}
+.previewPages { display:flex; gap:33px; justify-content:center; align-items:flex-start; padding:12px 0 40px; }
 .previewPages section { width:650px; background:#eee; }
 .arrow { height:70px; box-sizing:border-box; padding:18px; font-size:30px; text-align:center; color:#111; }
-.fakeArt { height:450px; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:bold; color:white; }
-.leftArt { background:linear-gradient(135deg,#24003f,#9d00d4,#ff8800); }
-.rightArt { background:linear-gradient(135deg,#180000,#7b0000,#ffcc00); }
-.log { margin:30px 22px; min-height:150px; border:1px dashed #888; padding:14px; font-size:18px; line-height:1.4; }
-.bottomArrow { padding:18px 24px 30px; font-size:24px; text-decoration:underline; color:#03c; }
-.hint { margin-top:16px; font-size:12px; font-family:Arial,sans-serif; font-weight:normal; }
+.fakeArt {
+  height:450px; position:relative; overflow:hidden;
+  border-top:4px solid currentColor; border-bottom:4px solid currentColor;
+}
+.leftArt { background:#050505; color:#cf00ff; }
+.rightArt { background:#050505; color:#ffc000; }
+.moon { position:absolute; width:260px; height:260px; border-radius:50%; top:90px; box-shadow:0 0 28px currentColor; background:currentColor; }
+.moonLeft { left:210px; color:#a000ff; }
+.moonRight { left:180px; color:#ffbf00; }
+.chain {
+  position:absolute; left:0; right:0; top:220px; height:28px;
+  background:repeating-linear-gradient(90deg,#6b4300 0 28px,#111 28px 38px);
+  transform:rotate(-8deg);
+}
+.log { margin:30px 22px; min-height:150px; border:1px dashed #888; padding:14px; font-size:17px; line-height:1.35; }
+.tt { color:#e5a800; } .gg { color:#00b8d4; }
+.bottomArrow { padding:18px 24px 30px; font-size:23px; text-decoration:underline; color:#03c; }
 </style>
-'''
+''''''
 write("src/components/SystemPages/X2ComboPreview.vue", x2_preview)
 
 # Register the new preview route/component.
