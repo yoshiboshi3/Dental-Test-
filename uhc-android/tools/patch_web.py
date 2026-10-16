@@ -426,6 +426,40 @@ android_css = r"""
   #uhcDamaraTranslate.visible { display:block; }
   #uhcDamaraTranslate.active { background:rgba(95,0,0,.94); color:#fff; }
 
+  #uhcSelectorHint {
+    position:fixed; left:50%; top:72px; transform:translateX(-50%);
+    z-index:2147483140; display:none; padding:8px 14px; border-radius:14px;
+    background:rgba(0,0,0,.78); color:#fff; border:1px solid rgba(255,255,255,.72);
+    font:bold 11px monospace; pointer-events:none; box-shadow:0 3px 12px rgba(0,0,0,.32);
+  }
+  #uhcSelectorHint.visible { display:block; }
+
+  #uhcReturnSelection {
+    position:fixed; right:14px; top:70px; z-index:2147483130; display:none;
+    padding:9px 12px; border-radius:11px; border:2px solid #fff;
+    background:rgba(20,20,20,.82); color:#fff; font:bold 10px monospace;
+    box-shadow:0 3px 12px rgba(0,0,0,.32);
+  }
+  #uhcReturnSelection.visible { display:block; }
+
+  html.uhc-android [data-component="SNAPS"] {
+    width:100% !important; max-width:100vw !important; overflow:hidden !important;
+  }
+  html.uhc-android [data-component="SNAPS"] .pageFrame {
+    transform-origin:top center !important;
+  }
+
+  html.uhc-android [data-component="ENDOFHS"] {
+    width:100% !important; max-width:100vw !important; overflow-x:hidden !important;
+  }
+  html.uhc-android [data-component="ENDOFHS"] .tall,
+  html.uhc-android [data-component="ENDOFHS"] .main {
+    max-width:none !important; transform-origin:top center !important;
+  }
+  html.uhc-android [data-component="ENDOFHS"] video.mediaembed {
+    max-width:none !important; object-fit:contain !important;
+  }
+
   #uhcSpecialScrollRail {
     position:fixed; right:8px; top:50%; transform:translateY(-50%);
     z-index:2147483100; display:none; width:52px; padding:5px;
@@ -461,6 +495,7 @@ android_css = r"""
   let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
   let arrowMercy=null, arrowTapCount=0, mouseMode=false;
   let damaraToggle=null, damaraTranslate=false;
+  let selectorHint=null, returnSelectionBtn=null;
 
   function send(code,key,down){
     if(!activeGameWindow)return;
@@ -561,6 +596,103 @@ android_css = r"""
     return arrowMercy;
   }
 
+  function ensureSelectorHint(){
+    if(selectorHint)return selectorHint;
+    selectorHint=document.createElement('div');
+    selectorHint.id='uhcSelectorHint';
+    selectorHint.textContent='TAP ONCE TO PREVIEW • TAP AGAIN TO SELECT';
+    document.body.appendChild(selectorHint);
+    return selectorHint;
+  }
+
+  function ensureReturnSelection(){
+    if(returnSelectionBtn)return returnSelectionBtn;
+    returnSelectionBtn=document.createElement('button');
+    returnSelectionBtn.id='uhcReturnSelection';
+    returnSelectionBtn.textContent='↩ RETURN TO SELECTION';
+    returnSelectionBtn.addEventListener('click',()=>{
+      const url=localStorage.getItem('uhc.android.lastSelectorUrl');
+      if(url)window.location.href=url;
+    });
+    document.body.appendChild(returnSelectionBtn);
+    return returnSelectionBtn;
+  }
+
+  function currentHomestuckPage(){
+    const m=window.location.pathname.match(/\/homestuck\/(\d+)(?:\/|$)/);
+    return m ? Number(m[1]) : null;
+  }
+
+  function isCharacterSelector(){
+    const n=currentHomestuckPage();
+    const known=new Set([4118,4159,4191,4466,5031,5049,5067,5075,5081,5136]);
+    const title=(document.querySelector('.pageTitle')?.textContent||'').trim().toLowerCase();
+    return known.has(n) || title==='select character.';
+  }
+
+  function updateSelectorUX(){
+    const selector=isCharacterSelector();
+    ensureSelectorHint().classList.toggle('visible',selector);
+
+    const iframes=[...document.querySelectorAll('iframe.mediaembed[data-flash-id]')];
+    iframes.forEach(f=>{
+      try{f.contentWindow.postMessage({type:'uhcHoverSelectMode',enabled:selector},'*');}catch(_){}
+    });
+
+    const n=currentHomestuckPage();
+    if(selector&&n!=null){
+      localStorage.setItem('uhc.android.lastSelectorUrl',window.location.pathname);
+      localStorage.setItem('uhc.android.lastSelectorPage',String(n));
+      ensureReturnSelection().classList.remove('visible');
+    }else{
+      const saved=Number(localStorage.getItem('uhc.android.lastSelectorPage')||0);
+      const show=n!=null&&saved>0&&n>saved&&n<=saved+180;
+      ensureReturnSelection().classList.toggle('visible',show);
+    }
+  }
+
+  function fitSnapsAndEndVideos(){
+    const snaps=document.querySelector('[data-component="SNAPS"]');
+    if(snaps){
+      const frame=snaps.querySelector('.pageFrame');
+      const nav=snaps.querySelector('.navBanner');
+      if(frame){
+        const availW=Math.max(280,window.innerWidth-12);
+        const availH=Math.max(420,window.innerHeight-(nav?nav.getBoundingClientRect().height:0)-12);
+        const fit=Math.min(1,availW/466,availH/971);
+        frame.style.zoom=String(fit);
+      }
+    }
+
+    const end=document.querySelector('[data-component="ENDOFHS"]');
+    if(end){
+      const tab=end.closest('.tabFrame');
+      const main=end.querySelector('.main');
+      const video=end.querySelector('video.mediaembed');
+      if(tab&&main){
+        let natural=end.classList.contains('act7')?1280:950;
+        if(video&&video.videoWidth)natural=Math.max(natural,video.videoWidth);
+        const available=Math.max(320,tab.clientWidth);
+        const fit=Math.min(1,available/natural);
+        main.style.zoom=String(fit);
+        main.style.width=natural+'px';
+        main.style.maxWidth='none';
+        main.style.marginLeft='auto';
+        main.style.marginRight='auto';
+        const tall=end.querySelector('.tall');
+        if(tall){tall.style.width='100%';tall.style.alignItems='center';}
+        if(video){
+          video.style.display='block';
+          video.style.marginLeft='auto';
+          video.style.marginRight='auto';
+          video.setAttribute('playsinline','');
+          video.setAttribute('preload','auto');
+          video.setAttribute('controls','true');
+        }
+      }
+    }
+  }
+
   function ensureScrollRail(){
     if(scrollRail)return scrollRail;
     scrollRail=document.createElement('div'); scrollRail.id='uhcSpecialScrollRail';
@@ -655,14 +787,37 @@ android_css = r"""
       if(arrowMercy)arrowMercy.classList.remove('visible');
     }
     fitSpecialPages();
+    fitSnapsAndEndVideos();
+    updateSelectorUX();
   },350);
 
-  window.addEventListener('resize',fitSpecialPages);
+  window.addEventListener('resize',()=>{
+    fitSpecialPages();
+    fitSnapsAndEndVideos();
+    updateSelectorUX();
+  });
 })();
 </script>
 """
 s = s.replace("</head>", android_css + "\n</head>")
 write("public/index.html", s)
+
+# Tag special Android layouts so the shell can scale them responsively.
+s = read("src/components/Comics/Snaps.vue")
+snaps_root = '<div class="pageBody" :class="[comic ? \'c\'+comic.name : \'c2016-10-24\']">'
+snaps_new = '<div class="pageBody" data-component="SNAPS" :class="[comic ? \'c\'+comic.name : \'c2016-10-24\']">'
+if snaps_root not in s:
+    raise RuntimeError("Snaps root marker not found")
+s = s.replace(snaps_root, snaps_new, 1)
+write("src/components/Comics/Snaps.vue", s)
+
+s = read("src/components/SpecialPages/EndOfHS.vue")
+end_root = '<div class="pageBody" :class="bgClass" :data-pageid="`${storyId}/${thisPage.pageId}`">'
+end_new = '<div class="pageBody" data-component="ENDOFHS" :class="bgClass" :data-pageid="`${storyId}/${thisPage.pageId}`">'
+if end_root not in s:
+    raise RuntimeError("EndOfHS root marker not found")
+s = s.replace(end_root, end_new, 1)
+write("src/components/SpecialPages/EndOfHS.vue", s)
 
 # Remove the hosted fork's authentication gate. Android is a local single-user app.
 s = read("src/App.vue")
@@ -696,8 +851,67 @@ flash_script_marker = """          // JS Enhancements: ${this.$localData.setting
 flash_script_replacement = """          // JS Enhancements: ${this.$localData.settings.jsFlashes}
           // HQ Audio: ${this.$localData.settings.hqAudio}
 
+          let uhcHoverSelectMode = false;
+          let uhcHoverPoint = null;
+          let uhcBlockPointerSequence = false;
+
+          function uhcPointerTarget(x, y) {
+            return document.elementFromPoint(x, y) ||
+              document.querySelector("ruffle-player") ||
+              document.querySelector("ruffle-embed") ||
+              document.body;
+          }
+
+          function uhcHoverAt(x, y) {
+            const t = uhcPointerTarget(x, y);
+            ["pointermove", "mousemove"].forEach(type => {
+              try {
+                const ev = type === "pointermove"
+                  ? new PointerEvent(type, {bubbles:true,cancelable:true,clientX:x,clientY:y,pointerType:"mouse"})
+                  : new MouseEvent(type, {bubbles:true,cancelable:true,clientX:x,clientY:y});
+                t.dispatchEvent(ev);
+              } catch (_) {}
+            });
+          }
+
+          document.addEventListener("pointerdown", e => {
+            if (!uhcHoverSelectMode) return;
+            const now = Date.now();
+            const same = uhcHoverPoint &&
+              Math.abs(uhcHoverPoint.x - e.clientX) < 34 &&
+              Math.abs(uhcHoverPoint.y - e.clientY) < 34 &&
+              now - uhcHoverPoint.time < 3500;
+
+            if (!same) {
+              uhcHoverPoint = {x:e.clientX,y:e.clientY,time:now};
+              uhcBlockPointerSequence = true;
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              uhcHoverAt(e.clientX, e.clientY);
+            } else {
+              uhcHoverPoint = null;
+              uhcBlockPointerSequence = false;
+            }
+          }, true);
+
+          ["pointerup", "click"].forEach(type => {
+            document.addEventListener(type, e => {
+              if (uhcHoverSelectMode && uhcBlockPointerSequence) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                if (type === "click") uhcBlockPointerSequence = false;
+              }
+            }, true);
+          });
+
           window.addEventListener("message", (event) => {
             const d = event.data || {};
+            if (d.type === "uhcHoverSelectMode") {
+              uhcHoverSelectMode = !!d.enabled;
+              uhcHoverPoint = null;
+              uhcBlockPointerSequence = false;
+              return;
+            }
             if (d.type !== "uhcFlashInput") return;
             const type = d.down ? "keydown" : "keyup";
             const opts = {
