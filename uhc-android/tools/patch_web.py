@@ -258,6 +258,15 @@ if ruffle_config_marker not in s:
 s = s.replace(ruffle_config_marker, ruffle_config_insert, 1)
 write("src/components/UIElements/MediaEmbed.vue", s)
 
+# Give the special A6A5 x2 Combo component a stable Android-only selector.
+s = read("src/components/SpecialPages/x2Combo.vue")
+old_x2_root = '<div class="pageBody customStyles">'
+new_x2_root = '<div class="pageBody customStyles" data-component="x2Combo">'
+if old_x2_root not in s:
+    raise RuntimeError("x2Combo root element not found")
+s = s.replace(old_x2_root, new_x2_root, 1)
+write("src/components/SpecialPages/x2Combo.vue", s)
+
 # Restore local-only persistence. The hosted fork moved save/settings data to an
 # HTTP auth server, which makes no sense in a fully offline APK.
 s = read("src/store/localData.js")
