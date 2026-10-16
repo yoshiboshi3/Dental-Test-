@@ -417,6 +417,22 @@ android_css = r"""
   }
   #uhcArrowMercy.visible { opacity:1; pointer-events:auto; transform:translateY(0); }
 
+  #uhcMouseCapture {
+    position:fixed; z-index:2147482990; display:none;
+    background:rgba(255,120,40,.035);
+    border:2px solid rgba(255,156,92,.55);
+    box-sizing:border-box; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  }
+  #uhcMouseCapture.visible { display:block; }
+  #uhcMouseCapture:after {
+    content:'MOUSE MODE';
+    position:absolute; right:6px; top:6px;
+    padding:3px 6px; border-radius:6px;
+    background:rgba(0,0,0,.58); color:#ffc39d;
+    font:bold 8px monospace; pointer-events:none;
+  }
+
   #uhcDamaraTranslate {
     position:fixed; left:50%; bottom:154px; transform:translateX(-50%);
     z-index:2147483120; display:none; border:2px solid #a10000; border-radius:12px;
@@ -576,27 +592,51 @@ android_css = r"""
 (function(){
   const GAME_FLASH_IDS=new Set([
     '00253','00476','01358','02791','03077','03318','03435','03692',
-    '04817','04822','04824','05424','05756'
+    '04817','04822','04824','05424',
+    '05711','05723','05737','05756','05760'
   ]);
   let activeGameWindow=null, activeGameKind=null, activeGameFlashId=null;
   let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
   let arrowMercy=null, arrowTapCount=0, mouseMode=false;
-  let damaraToggle=null, damaraTranslate=false;
+  let damaraToggle=null, damaraTranslate=false, mouseCapture=null;
   let selectorHint=null, returnSelectionBtn=null, globalMusicPlayer=null;
 
   function send(code,key,down){
     if(!activeGameWindow)return;
     const type=(activeGameKind==='ruffle')?'uhcFlashInput':'uhcSburbInput';
     try{activeGameWindow.postMessage({type:type,code:code,key:key,down:down},'*');}catch(e){}
-    if(activeGameFlashId==='05756'&&code===39&&down){
+    if(activeGameFlashId==='05756'&&(code===37||code===39)&&down){
       arrowTapCount++;
       if(arrowTapCount>=100)ensureArrowMercy().classList.add('visible');
     }
   }
   function bindButton(btn,code,key){
-    let down=false;
-    const press=e=>{e.preventDefault();if(down)return;down=true;send(code,key,true);};
-    const release=e=>{if(e)e.preventDefault();if(!down)return;down=false;send(code,key,false);};
+    let down=false, repeatTimer=null, repeatDelay=null;
+    const pulse=()=>{send(code,key,true);send(code,key,false);};
+    const press=e=>{
+      e.preventDefault();
+      if(down)return;
+      down=true;
+      send(code,key,true);
+
+      // Dirk's Trickster sidle page expects keyboard-repeat-like discrete
+      // arrow presses. A physical keyboard repeats while held; touch does not,
+      // so recreate that behavior only on this one ridiculous page.
+      if(activeGameFlashId==='05756'&&(code===37||code===39)){
+        repeatDelay=setTimeout(()=>{
+          send(code,key,false);
+          repeatTimer=setInterval(pulse,34);
+        },260);
+      }
+    };
+    const release=e=>{
+      if(e)e.preventDefault();
+      if(repeatDelay){clearTimeout(repeatDelay);repeatDelay=null;}
+      if(repeatTimer){clearInterval(repeatTimer);repeatTimer=null;}
+      if(!down)return;
+      down=false;
+      send(code,key,false);
+    };
     btn.addEventListener('pointerdown',press);btn.addEventListener('pointerup',release);
     btn.addEventListener('pointercancel',release);btn.addEventListener('pointerleave',release);
     btn.addEventListener('contextmenu',e=>e.preventDefault());
@@ -637,9 +677,71 @@ android_css = r"""
       if(activeGameWindow&&activeGameKind==='sburb'){
         try{activeGameWindow.postMessage({type:'uhcSburbMouseMode',enabled:mouseMode},'*');}catch(_){}
       }
+      updateMouseCapture();
     });
     return controller;
   }
+  function ensureMouseCapture(){
+    if(mouseCapture)return mouseCapture;
+    mouseCapture=document.createElement('div');
+    mouseCapture.id='uhcMouseCapture';
+    document.body.appendChild(mouseCapture);
+
+    const sendPointer=(action,e)=>{
+      if(!activeGameWindow||activeGameKind!=='sburb')return;
+      const r=mouseCapture.getBoundingClientRect();
+      if(!r.width||!r.height)return;
+      const nx=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+      const ny=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+      try{activeGameWindow.postMessage({type:'uhcSburbPointer',action:action,nx:nx,ny:ny},'*');}catch(_){}
+    };
+
+    let active=false;
+    mouseCapture.addEventListener('pointerdown',e=>{
+      e.preventDefault();e.stopPropagation();
+      active=true;
+      try{mouseCapture.setPointerCapture(e.pointerId);}catch(_){}
+      sendPointer('move',e);sendPointer('down',e);
+    });
+    mouseCapture.addEventListener('pointermove',e=>{
+      if(!active)return;
+      e.preventDefault();sendPointer('move',e);
+    });
+    mouseCapture.addEventListener('pointerup',e=>{
+      e.preventDefault();e.stopPropagation();
+      sendPointer('up',e);sendPointer('click',e);active=false;
+    });
+    mouseCapture.addEventListener('pointercancel',e=>{
+      if(active)sendPointer('up',e);
+      active=false;
+    });
+    mouseCapture.addEventListener('contextmenu',e=>e.preventDefault());
+    return mouseCapture;
+  }
+
+  function updateMouseCapture(){
+    const capture=ensureMouseCapture();
+    const visible=mouseMode&&activeGameKind==='sburb'&&activeGameWindow;
+    if(!visible){
+      capture.classList.remove('visible');
+      return;
+    }
+    let frame=null;
+    document.querySelectorAll('iframe.mediaembed').forEach(f=>{
+      try{if(f.contentWindow===activeGameWindow)frame=f;}catch(_){}
+    });
+    if(!frame){
+      capture.classList.remove('visible');
+      return;
+    }
+    const r=frame.getBoundingClientRect();
+    capture.style.left=Math.round(r.left)+'px';
+    capture.style.top=Math.round(r.top)+'px';
+    capture.style.width=Math.round(r.width)+'px';
+    capture.style.height=Math.round(r.height)+'px';
+    capture.classList.add('visible');
+  }
+
   function ensureDamaraToggle(){
     if(damaraToggle)return damaraToggle;
     damaraToggle=document.createElement('button');
@@ -673,7 +775,11 @@ android_css = r"""
       if(activeGameFlashId!=='05756')return;
       let remaining=Math.max(0,1111-arrowTapCount),sent=0;
       const batch=()=>{
-        for(let i=0;i<18&&sent<remaining;i++,sent++){send(39,'ArrowRight',true);send(39,'ArrowRight',false);}
+        for(let i=0;i<18&&sent<remaining;i++,sent++){
+          const right=(sent%2)===0;
+          send(right?39:37,right?'ArrowRight':'ArrowLeft',true);
+          send(right?39:37,right?'ArrowRight':'ArrowLeft',false);
+        }
         if(sent<remaining)requestAnimationFrame(batch);
       };
       batch();
@@ -734,9 +840,18 @@ android_css = r"""
 
   function isCharacterSelector(){
     const n=currentHomestuckPage();
-    const known=new Set([4118,4159,4191,4466,5031,5049,5067,5075,5081,5136]);
+    const knownPages=new Set([4118,4159,4191,4466,5031,5049,5067,5075,5081,5136]);
+    const selectorFlashIds=new Set([
+      '06277','06379','06394','06398','06402','06413',
+      '07482','07668','07677','07682','07689','07692','07696',
+      '07709','07721','07729','07762','07800','07905'
+    ]);
+    let flashMatch=false;
+    document.querySelectorAll('iframe.mediaembed[data-flash-id]').forEach(f=>{
+      if(selectorFlashIds.has(f.getAttribute('data-flash-id')||''))flashMatch=true;
+    });
     const title=(document.querySelector('.pageTitle')?.textContent||'').trim().toLowerCase();
-    return known.has(n) || title==='select character.';
+    return flashMatch || knownPages.has(n) || title==='select character.';
   }
 
   function updateSelectorUX(){
@@ -883,6 +998,7 @@ android_css = r"""
       activeGameWindow=null;activeGameKind=null;activeGameFlashId=null;
       if(controller)controller.classList.remove('visible');
       if(damaraToggle)damaraToggle.classList.remove('visible');
+      if(mouseCapture)mouseCapture.classList.remove('visible');
     }
   });
 
@@ -901,7 +1017,8 @@ android_css = r"""
     fitSnapsAndEndVideos();
     updateSelectorUX();
     if(globalMusicPlayer)globalMusicPlayer.classList.toggle('gameActive',!!(controller&&controller.classList.contains('visible')));
-  },350);
+    updateMouseCapture();
+  },120);
 
   window.addEventListener('resize',()=>{
     fitSpecialPages();
