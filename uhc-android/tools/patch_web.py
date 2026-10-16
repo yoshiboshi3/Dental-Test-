@@ -96,6 +96,46 @@ android_css = r"""
     }
   }
 
+  /* Never let the archive homepage inherit desktop intrinsic widths. */
+  html.uhc-android .homepage {
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  html.uhc-android .homepage .card {
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  html.uhc-android .homepage .cardContent,
+  html.uhc-android .homepage .cardEntry,
+  html.uhc-android .homepage .cardRows {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  html.uhc-android .homepage .cardEntry .description {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow-wrap: anywhere !important;
+  }
+  html.uhc-android .homepage .cardEntry .links {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* The TabFrame is normally horizontally scrollable because some desktop
+     gimmick pages need it. Disable that only for layouts we explicitly fit. */
+  html.uhc-android .tabFrame:has(.homepage),
+  html.uhc-android .tabFrame:has([data-component="x2Combo"]) {
+    overflow-x: hidden !important;
+  }
+
   /*
    * A6A5A1 x2 Combo pages are intentionally 1660px wide on desktop.
    * On Android/Fold, preserve the two simultaneous pages but reflow the
