@@ -102,104 +102,71 @@
 
   function installTouchMouse(){
     const style=document.createElement("style");
-    style.textContent="html,body,#SBURBgameDiv,#SBURBStage,#SBURBgameDiv canvas{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important} #SBURBStage{outline:none!important}";
+    style.textContent="html,body,*{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important}#SBURBgameDiv,#SBURBStage,#SBURBgameDiv canvas{touch-action:none!important}";
     document.head.appendChild(style);
 
-    let pointerDown=false;
-
-    function stageForEvent(e){
-      const stage=document.getElementById("SBURBStage");
-      if(!stage)return null;
-      const r=stage.getBoundingClientRect();
-      if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)return null;
-      return {stage,r};
-    }
-
-    function legacyEvent(stage,r,e){
-      const x=(e.clientX-r.left)*(stage.width/Math.max(1,r.width));
-      const y=(e.clientY-r.top)*(stage.height/Math.max(1,r.height));
-      let ox=0,oy=0,cur=stage;
-      while(cur){ox+=cur.offsetLeft||0;oy+=cur.offsetTop||0;cur=cur.offsetParent;}
-      return {
-        pageX:ox+x,
-        pageY:oy+y,
-        clientX:e.clientX,
-        clientY:e.clientY,
-        preventDefault:function(){},
-        stopPropagation:function(){}
-      };
-    }
-
-    function directly(type,e){
-      const found=stageForEvent(e);
-      if(!found || !window.Sburb || !Sburb.Mouse)return false;
-      const fake=legacyEvent(found.stage,found.r,e);
+    function setPoint(clientX,clientY){
       try{
-        if(typeof Sburb.onMouseMove==="function")Sburb.onMouseMove(fake,found.stage);
-        if(type==="down"){
-          pointerDown=true;
-          if(typeof Sburb.onMouseDown==="function")Sburb.onMouseDown(fake,found.stage);
-          else Sburb.Mouse.down=true;
-        }else if(type==="up"){
-          pointerDown=false;
-          if(typeof Sburb.onMouseUp==="function")Sburb.onMouseUp(fake,found.stage);
-          else Sburb.Mouse.down=false;
-        }
-        try{
-          const sel=window.getSelection && window.getSelection();
-          if(sel)sel.removeAllRanges();
-        }catch(_){}
+        if(!window.Sburb || !Sburb.Stage || !Sburb.Mouse)return false;
+        const stage=Sburb.Stage;
+        const rect=stage.getBoundingClientRect();
+        const sx=stage.width/(rect.width||stage.width||650);
+        const sy=stage.height/(rect.height||stage.height||450);
+        Sburb.Mouse.x=(clientX-rect.left)*sx;
+        Sburb.Mouse.y=(clientY-rect.top)*sy;
         return true;
-      }catch(err){
-        report("MOUSE "+String(err));
-        return false;
-      }
+      }catch(_){return false;}
     }
 
+    function down(clientX,clientY){
+      if(!setPoint(clientX,clientY))return;
+      try{
+        if(Sburb.onMouseDown)Sburb.onMouseDown({pageX:clientX+window.scrollX,pageY:clientY+window.scrollY,preventDefault:function(){}},Sburb.Stage);
+      }catch(_){}
+    }
+    function up(clientX,clientY){
+      if(!setPoint(clientX,clientY))return;
+      try{
+        if(Sburb.onMouseUp)Sburb.onMouseUp({pageX:clientX+window.scrollX,pageY:clientY+window.scrollY,preventDefault:function(){}},Sburb.Stage);
+      }catch(_){}
+    }
+    function move(clientX,clientY){
+      setPoint(clientX,clientY);
+    }
+
+    // Pointer events are what current Android WebView reliably emits.
     document.addEventListener("pointerdown",e=>{
-      if(directly("down",e)){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
+      if(e.pointerType && e.pointerType!=="touch" && e.pointerType!=="pen")return;
+      e.preventDefault(); e.stopPropagation();
+      move(e.clientX,e.clientY); down(e.clientX,e.clientY);
     },true);
-
     document.addEventListener("pointerup",e=>{
-      if(directly("up",e)){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
+      if(e.pointerType && e.pointerType!=="touch" && e.pointerType!=="pen")return;
+      e.preventDefault(); e.stopPropagation();
+      move(e.clientX,e.clientY); up(e.clientX,e.clientY);
     },true);
-
-    document.addEventListener("pointercancel",e=>{
-      if(pointerDown){
-        const found=stageForEvent(e);
-        if(found && window.Sburb && Sburb.Mouse)Sburb.Mouse.down=false;
-        pointerDown=false;
-      }
-    },true);
-
     document.addEventListener("pointermove",e=>{
-      if(!mouseMode && !pointerDown)return;
-      if(directly("move",e)){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
+      if(!mouseMode)return;
+      if(e.pointerType && e.pointerType!=="touch" && e.pointerType!=="pen")return;
+      e.preventDefault(); e.stopPropagation();
+      move(e.clientX,e.clientY);
     },true);
 
-    // Older Android WebViews sometimes send touch without pointer events.
+    // Touch fallback for older WebViews.
     document.addEventListener("touchstart",e=>{
       if(!e.touches||!e.touches.length)return;
-      const t=e.touches[0];
-      if(directly("down",t))e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
+      const t=e.touches[0]; move(t.clientX,t.clientY); down(t.clientX,t.clientY);
     },{passive:false,capture:true});
     document.addEventListener("touchend",e=>{
-      if(!e.changedTouches||!e.changedTouches.length)return;
-      const t=e.changedTouches[0];
-      if(directly("up",t))e.preventDefault();
+      const t=e.changedTouches&&e.changedTouches[0]; if(!t)return;
+      e.preventDefault(); e.stopPropagation();
+      move(t.clientX,t.clientY); up(t.clientX,t.clientY);
     },{passive:false,capture:true});
     document.addEventListener("touchmove",e=>{
-      if((!mouseMode&&!pointerDown)||!e.touches||!e.touches.length)return;
-      if(directly("move",e.touches[0]))e.preventDefault();
+      if(!mouseMode||!e.touches||!e.touches.length)return;
+      e.preventDefault(); e.stopPropagation();
+      const t=e.touches[0]; move(t.clientX,t.clientY);
     },{passive:false,capture:true});
   }
 
@@ -303,6 +270,19 @@
       return originalSetText.call(this,next);
     };
     proto.__uhcMobilePatched=true;
+
+    if(!window.__uhcDamaraPoll){
+      window.__uhcDamaraPoll=setInterval(()=>{
+        try{
+          const eng=window.Sburb&&Sburb.dialoger&&Sburb.dialoger.dialog;
+          if(!eng)return;
+          const raw=String(eng.__uhcOriginalText||eng.text||"");
+          if(/DAMARA:\s*.*[\u3040-\u30ff\u3400-\u9fff]/.test(raw)){
+            parentPost({type:"uhcDamaraSeen"});
+          }
+        }catch(_){}
+      },250);
+    }
     return true;
   }
 
