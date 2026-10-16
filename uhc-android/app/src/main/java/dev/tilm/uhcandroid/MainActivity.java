@@ -179,7 +179,7 @@ public final class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl("https://" + LocalWebViewClient.APP_HOST + "/index.html");
+        webView.loadUrl("https://" + LocalWebViewClient.APP_HOST + "/");
     }
 
     @Override
