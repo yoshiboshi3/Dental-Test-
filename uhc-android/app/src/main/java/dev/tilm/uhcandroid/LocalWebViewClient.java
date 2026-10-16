@@ -115,6 +115,12 @@ final class LocalWebViewClient extends WebViewClient {
                 "font-size:14px;letter-spacing:1px;background:rgba(120,0,120,.58)}" +
                 "</style>" +
                 "<script>(function(){" +
+                "function report(msg){try{var id='uhcOpenboundError';var p=document.getElementById(id);" +
+                "if(!p){p=document.createElement('pre');p.id=id;p.style.cssText='position:fixed;left:6px;right:6px;" +
+                "top:6px;z-index:2147483647;max-height:42vh;overflow:auto;background:rgba(0,0,0,.86);color:#ffb;" +
+                "padding:8px;font:11px monospace;white-space:pre-wrap;pointer-events:none';document.body.appendChild(p);}p.textContent+=msg+'\\n';}catch(_){}}" +
+                "window.addEventListener('error',function(e){report('JS '+(e.message||'error')+' @ '+(e.filename||'')+':'+(e.lineno||''));});" +
+                "window.addEventListener('unhandledrejection',function(e){report('PROMISE '+String(e.reason));});" +
                 "function eventFor(type,code,key){var e=new Event(type,{bubbles:true,cancelable:true});" +
                 "try{Object.defineProperty(e,'keyCode',{value:code});Object.defineProperty(e,'which',{value:code});" +
                 "Object.defineProperty(e,'key',{value:key});}catch(_){ }return e;}" +
