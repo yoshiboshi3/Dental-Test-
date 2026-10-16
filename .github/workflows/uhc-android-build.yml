@@ -59,6 +59,7 @@ jobs:
         working-directory: /tmp/uhc-web
         run: |
           python3 "$GITHUB_WORKSPACE/uhc-android/tools/patch_web.py" /tmp/uhc-web
+          cp "$GITHUB_WORKSPACE/uhc-android/web/sburb-mobile.js" /tmp/uhc-web/public/sburb-mobile.js
 
       - name: Build UHC frontend for the private Android origins
         working-directory: /tmp/uhc-web
