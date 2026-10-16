@@ -42,6 +42,15 @@ final class LocalWebViewClient extends WebViewClient {
         return intercept(Uri.parse(url), null);
     }
 
+    private static boolean isMusicHost(String host) {
+        if (host == null) return false;
+        String h = host.toLowerCase(Locale.US);
+        return h.equals("bandcamp.com") ||
+                h.endsWith(".bandcamp.com") ||
+                h.equals("bcbits.com") ||
+                h.endsWith(".bcbits.com");
+    }
+
     private WebResourceResponse intercept(Uri uri, String range) {
         String host = uri.getHost();
         try {
@@ -68,9 +77,12 @@ final class LocalWebViewClient extends WebViewClient {
                         r.stream
                 );
             }
-            // The Android port is deliberately offline. Do not silently leak resource
-            // requests to remote trackers/CDNs.
+            // The story/app remains fully offline. The one deliberate exception is
+            // Homestuck's music database, whose original player is a Bandcamp embed.
+            // If the device is offline the player simply fails normally; no story
+            // content depends on network access.
             if ("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) {
+                if (isMusicHost(host)) return null;
                 return textResponse(451, "Unavailable Offline",
                         "This resource is external and is disabled in the offline Android build:\n" + uri);
             }
@@ -241,7 +253,7 @@ final class LocalWebViewClient extends WebViewClient {
 
     private boolean maybeExternal(Uri uri) {
         String host = uri.getHost();
-        if (APP_HOST.equals(host) || ASSET_HOST.equals(host)) return false;
+        if (APP_HOST.equals(host) || ASSET_HOST.equals(host) || isMusicHost(host)) return false;
         String scheme = uri.getScheme();
         if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
             try {
