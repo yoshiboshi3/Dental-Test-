@@ -1,0 +1,48 @@
+name: Research Homestuck Selector Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - uhc-android-prototype
+    paths:
+      - ".github/workflows/uhc-selector-research.yml"
+
+jobs:
+  selectors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch UHC source
+        run: git clone --depth=1 https://github.com/jennymaeleidig/unofficial-homestuck-collection-web.git /tmp/uhc-web
+      - name: Extract selector candidates
+        run: |
+          python3 - <<'PY'
+          import json,re,pathlib
+          data=json.loads(pathlib.Path('/tmp/uhc-web/src/data/mspa.json').read_text())
+          story=data.get('story',data.get('mspa',{}).get('story',{}))
+          out=[]
+          needles=['select character','retrieve arms','stardust','choose','selection','a6a6i1']
+          for k,p in story.items():
+              title=str(p.get('title',''))
+              content=re.sub('<[^>]+>',' ',str(p.get('content','') or ''))
+              flags=p.get('flag',[]) or []
+              if isinstance(flags,str): flags=[flags]
+              media=p.get('media',[]) or []
+              blob=' '.join([title,content,' '.join(flags),' '.join(map(str,media))]).lower()
+              if any(n in blob for n in needles) or 'SWFNAV' in flags:
+                  out.append({
+                    'id':k,'viz':(int(k)-1900 if k.isdigit() and int(k)>=1901 else k),
+                    'title':title,'flags':flags,'media':media,
+                    'previous':p.get('previous'),'next':p.get('next',[]),
+                    'content':re.sub(r'\s+',' ',content).strip()[:700]
+                  })
+          pathlib.Path('selector-research.json').write_text(json.dumps(out,indent=2))
+          print(json.dumps(out,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uhc-selector-research
+          path: selector-research.json
+          retention-days: 7
