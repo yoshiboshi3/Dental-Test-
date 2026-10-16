@@ -460,6 +460,93 @@ android_css = r"""
     max-width:none !important; object-fit:contain !important;
   }
 
+  html.uhc-android [data-component="MUSIC"] {
+    width:100% !important; max-width:100vw !important; min-width:0 !important;
+    overflow-x:hidden !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .pageFrame,
+  html.uhc-android [data-component="MUSIC"] .navBanner,
+  html.uhc-android [data-component="MUSIC"] .banner,
+  html.uhc-android [data-component="MUSIC"] .banner img {
+    width:100% !important; max-width:100vw !important; min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .pageContent {
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+    box-sizing:border-box !important; padding:18px !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .leftColumn {
+    width:calc(100% - 155px) !important; min-width:0 !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .rightColumn {
+    max-width:135px !important; margin-left:18px !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackPage,
+  html.uhc-android [data-component="MUSIC"] .albumPage {
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackPage .info,
+  html.uhc-android [data-component="MUSIC"] .trackPage .nameSection,
+  html.uhc-android [data-component="MUSIC"] .albumPage .info,
+  html.uhc-android [data-component="MUSIC"] .albumPage .nameSection {
+    max-width:100% !important; min-width:0 !important;
+  }
+  html.uhc-android [data-component="MUSIC"] img {
+    max-width:100% !important; height:auto !important;
+  }
+  @media (max-width: 760px) {
+    html.uhc-android [data-component="MUSIC"] .pageContent {
+      display:flex !important; flex-direction:column !important; padding:12px !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .leftColumn {
+      width:100% !important; float:none !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .rightColumn {
+      width:100% !important; max-width:100% !important; margin:18px 0 0 !important; float:none !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .trackPage .nameSection,
+    html.uhc-android [data-component="MUSIC"] .trackPage .info,
+    html.uhc-android [data-component="MUSIC"] .albumPage .nameSection,
+    html.uhc-android [data-component="MUSIC"] .albumPage .info {
+      width:100% !important; float:none !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .trackPage .middleColumn,
+    html.uhc-android [data-component="MUSIC"] .albumPage .middleColumn {
+      width:min(350px,100%) !important; float:none !important; margin:18px auto !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .trackPage .byArtist,
+    html.uhc-android [data-component="MUSIC"] .albumPage .byArtist {
+      width:auto !important; max-width:100% !important;
+    }
+  }
+
+  #uhcGlobalMusicPlayer {
+    position:fixed; left:10px; right:10px; bottom:8px; z-index:2147483200;
+    display:none; min-height:58px; padding:7px 48px 7px 8px;
+    border:2px solid rgba(97,154,169,.95); border-radius:12px;
+    background:rgba(30,30,30,.94); box-shadow:0 4px 18px rgba(0,0,0,.42);
+    backdrop-filter:blur(3px);
+  }
+  #uhcGlobalMusicPlayer.visible { display:block; }
+  #uhcGlobalMusicPlayer.gameActive { bottom:148px; }
+  #uhcGlobalMusicPlayer .title {
+    color:#fff; font:11px Arial,sans-serif; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; margin:0 0 4px 4px;
+  }
+  #uhcGlobalMusicPlayer iframe {
+    display:block; width:100%; height:42px; border:0; background:#303030;
+  }
+  #uhcGlobalMusicPlayer .close {
+    position:absolute; right:8px; top:8px; width:32px; height:32px;
+    border:1px solid #aaa; border-radius:9px; background:#222; color:#fff;
+    font:bold 17px sans-serif;
+  }
+  .uhcMobilePlayerButton {
+    display:inline-block; margin:8px 0 4px; padding:8px 12px;
+    border:0; border-radius:5px; background:#619aa9; color:#fff;
+    font:bold 12px Arial,sans-serif; cursor:pointer;
+  }
+
   #uhcSpecialScrollRail {
     position:fixed; right:8px; top:50%; transform:translateY(-50%);
     z-index:2147483100; display:none; width:52px; padding:5px;
@@ -495,7 +582,7 @@ android_css = r"""
   let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
   let arrowMercy=null, arrowTapCount=0, mouseMode=false;
   let damaraToggle=null, damaraTranslate=false;
-  let selectorHint=null, returnSelectionBtn=null;
+  let selectorHint=null, returnSelectionBtn=null, globalMusicPlayer=null;
 
   function send(code,key,down){
     if(!activeGameWindow)return;
@@ -594,6 +681,28 @@ android_css = r"""
     });
     document.body.appendChild(arrowMercy);
     return arrowMercy;
+  }
+
+  function ensureGlobalMusicPlayer(){
+    if(globalMusicPlayer)return globalMusicPlayer;
+    globalMusicPlayer=document.createElement('div');
+    globalMusicPlayer.id='uhcGlobalMusicPlayer';
+    globalMusicPlayer.innerHTML='<div class="title"></div><iframe allow="autoplay"></iframe><button class="close">×</button>';
+    globalMusicPlayer.querySelector('.close').addEventListener('click',()=>{
+      globalMusicPlayer.classList.remove('visible');
+      globalMusicPlayer.querySelector('iframe').src='about:blank';
+    });
+    document.body.appendChild(globalMusicPlayer);
+    return globalMusicPlayer;
+  }
+
+  function openGlobalMusicPlayer(id,name){
+    if(!id)return;
+    const p=ensureGlobalMusicPlayer();
+    p.querySelector('.title').textContent=name||'Homestuck Music';
+    p.querySelector('iframe').src='https://bandcamp.com/EmbeddedPlayer/size=small/bgcol=333333/linkcol=0f91ff/artwork=none/track='+encodeURIComponent(id)+'/transparent=true/';
+    p.classList.add('visible');
+    p.classList.toggle('gameActive',!!(controller&&controller.classList.contains('visible')));
   }
 
   function ensureSelectorHint(){
@@ -761,12 +870,14 @@ android_css = r"""
 
   window.addEventListener('message',e=>{
     const d=e.data||{};
-    if(d.type==='uhcSburbReady'){
+    if(d.type==='uhcMusicTrack'){
+      openGlobalMusicPlayer(d.bandcampId,d.name);
+    }else if(d.type==='uhcSburbReady'){
       activeGameWindow=e.source;activeGameKind='sburb';activeGameFlashId=null;
       ensureController().classList.add('visible');
       try{activeGameWindow.postMessage({type:'uhcSburbMouseMode',enabled:mouseMode},'*');}catch(_){}
       try{activeGameWindow.postMessage({type:'uhcDamaraTranslate',enabled:damaraTranslate},'*');}catch(_){}
-    }else if(d.type==='uhcDamaraSeen'&&e.source===activeGameWindow){
+    }else if(d.type==='uhcDamaraSeen'){
       ensureDamaraToggle().classList.add('visible');
     }else if(d.type==='uhcSburbGone'&&e.source===activeGameWindow&&activeGameKind==='sburb'){
       activeGameWindow=null;activeGameKind=null;activeGameFlashId=null;
@@ -789,6 +900,7 @@ android_css = r"""
     fitSpecialPages();
     fitSnapsAndEndVideos();
     updateSelectorUX();
+    if(globalMusicPlayer)globalMusicPlayer.classList.toggle('gameActive',!!(controller&&controller.classList.contains('visible')));
   },350);
 
   window.addEventListener('resize',()=>{
@@ -801,6 +913,42 @@ android_css = r"""
 """
 s = s.replace("</head>", android_css + "\n</head>")
 write("public/index.html", s)
+
+# Make the music database responsive and add a persistent Android mini-player.
+s = read("src/components/Music/MusicFrame.vue")
+music_root = '<div class="pageBody customStyles">'
+music_new = '<div class="pageBody customStyles" data-component="MUSIC">'
+if music_root not in s:
+    raise RuntimeError("MusicFrame root marker not found")
+s = s.replace(music_root, music_new, 1)
+write("src/components/Music/MusicFrame.vue", s)
+
+s = read("src/components/Music/Track.vue")
+bandcamp_line = '''      <iframe v-if="$localData.settings.bandcampEmbed && track.bandcampId" class="bandcamp" :key="track.directory" :src="`https://bandcamp.com/EmbeddedPlayer/size=small/bgcol=333333/linkcol=0f91ff/artwork=none/track=${track.bandcampId}/transparent=true/`" seamless></iframe>'''
+bandcamp_new = bandcamp_line + '''
+      <button
+        v-if="$localData.settings.bandcampEmbed && track.bandcampId"
+        class="uhcMobilePlayerButton"
+        @click="openSiteWidePlayer"
+      >Keep playing site-wide</button>'''
+if bandcamp_line not in s:
+    raise RuntimeError("Track Bandcamp iframe marker not found")
+s = s.replace(bandcamp_line, bandcamp_new, 1)
+methods_marker = """  methods: {
+    // thnks florrie 👍"""
+methods_new = """  methods: {
+    openSiteWidePlayer() {
+      window.postMessage({
+        type: 'uhcMusicTrack',
+        bandcampId: this.track.bandcampId,
+        name: this.track.name
+      }, '*')
+    },
+    // thnks florrie 👍"""
+if methods_marker not in s:
+    raise RuntimeError("Track methods marker not found")
+s = s.replace(methods_marker, methods_new, 1)
+write("src/components/Music/Track.vue", s)
 
 # Tag special Android layouts so the shell can scale them responsively.
 s = read("src/components/Comics/Snaps.vue")
