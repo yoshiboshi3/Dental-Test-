@@ -53,7 +53,7 @@ final class LocalWebViewClient extends WebViewClient {
                 AssetPackResolver.AssetResponse r = assetPack.open(path, range);
                 if (r.statusCode == 200 && r.mimeType != null &&
                         r.mimeType.toLowerCase(Locale.US).startsWith("text/html")) {
-                    return serveResponsiveLegacyHtml(r);
+                    return serveResponsiveLegacyHtml(r, path);
                 }
                 return new WebResourceResponse(
                         r.mimeType,
@@ -82,7 +82,7 @@ final class LocalWebViewClient extends WebViewClient {
     }
 
 
-    private WebResourceResponse serveResponsiveLegacyHtml(AssetPackResolver.AssetResponse source)
+    private WebResourceResponse serveResponsiveLegacyHtml(AssetPackResolver.AssetResponse source, String path)
             throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (InputStream in = source.stream) {
@@ -96,6 +96,50 @@ final class LocalWebViewClient extends WebViewClient {
         // ISO-8859-1 is intentional here: converting arbitrary legacy HTML bytes
         // to String and back with this charset is byte-preserving for 0x00-0xFF.
         String html = new String(buffer.toByteArray(), StandardCharsets.ISO_8859_1);
+        boolean isOpenbound =
+                path != null &&
+                path.matches("(?i).*/storyfiles/hs2/(05260|05305|05395)/[^/]*\\.html$");
+
+        String openboundTouch = isOpenbound ? (
+                "<style id=\"uhc-openbound-touch-style\">" +
+                "#uhcOpenboundTouch{position:fixed;left:0;right:0;bottom:8px;z-index:2147483647;" +
+                "pointer-events:none;font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}" +
+                "#uhcOpenboundTouch button{pointer-events:auto;position:absolute;width:58px;height:58px;" +
+                "border:2px solid rgba(255,255,255,.78);border-radius:14px;background:rgba(0,0,0,.48);" +
+                "color:#fff;font:bold 28px Arial;touch-action:none;-webkit-tap-highlight-color:transparent}" +
+                "#uhcOpenboundTouch .u{left:74px;bottom:64px}" +
+                "#uhcOpenboundTouch .d{left:74px;bottom:-52px}" +
+                "#uhcOpenboundTouch .l{left:16px;bottom:6px}" +
+                "#uhcOpenboundTouch .r{left:132px;bottom:6px}" +
+                "#uhcOpenboundTouch .a{right:18px;bottom:6px;width:86px;height:70px;border-radius:35px;" +
+                "font-size:14px;letter-spacing:1px;background:rgba(120,0,120,.58)}" +
+                "</style>" +
+                openboundTouch +
+                "<script>(function(){" +
+                "function eventFor(type,code,key){var e=new Event(type,{bubbles:true,cancelable:true});" +
+                "try{Object.defineProperty(e,'keyCode',{value:code});Object.defineProperty(e,'which',{value:code});" +
+                "Object.defineProperty(e,'key',{value:key});}catch(_){ }return e;}" +
+                "function target(){return document.getElementById('SBURBgameDiv')||document.getElementById('SBURBStage')||document.body;}" +
+                "function send(type,code,key){var t=target();try{var st=document.getElementById('SBURBStage');if(st)st.focus();}catch(_){ }" +
+                "t.dispatchEvent(eventFor(type,code,key));}" +
+                "function bind(btn,code,key){var down=false;" +
+                "function press(ev){ev.preventDefault();if(down)return;down=true;send('keydown',code,key);}" +
+                "function release(ev){if(ev)ev.preventDefault();if(!down)return;down=false;send('keyup',code,key);}" +
+                "btn.addEventListener('pointerdown',press);btn.addEventListener('pointerup',release);" +
+                "btn.addEventListener('pointercancel',release);btn.addEventListener('pointerleave',release);" +
+                "btn.addEventListener('contextmenu',function(e){e.preventDefault();});}" +
+                "function mount(){if(document.getElementById('uhcOpenboundTouch'))return;" +
+                "var c=document.createElement('div');c.id='uhcOpenboundTouch';" +
+                "c.innerHTML='<button class=\"u\">▲</button><button class=\"d\">▼</button>'+" +
+                "'<button class=\"l\">◀</button><button class=\"r\">▶</button><button class=\"a\">SPACE</button>';" +
+                "document.body.appendChild(c);" +
+                "bind(c.querySelector('.u'),38,'ArrowUp');bind(c.querySelector('.d'),40,'ArrowDown');" +
+                "bind(c.querySelector('.l'),37,'ArrowLeft');bind(c.querySelector('.r'),39,'ArrowRight');" +
+                "bind(c.querySelector('.a'),32,' ');}" +
+                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();" +
+                "})();<\/script>"
+        ) : "";
+
         String injection =
                 "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">" +
                 "<style id=\"uhc-android-legacy-fit\">" +
