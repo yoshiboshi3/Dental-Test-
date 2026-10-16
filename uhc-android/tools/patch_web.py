@@ -84,6 +84,8 @@ android_css = r"""
     }
     html.uhc-android .homepage .cardContent.cardRows .rowItem .description {
       min-width: 0 !important;
+      width: auto !important;
+      flex: 1 1 auto !important;
       padding-left: 8px !important;
       padding-right: 4px !important;
     }
@@ -91,14 +93,6 @@ android_css = r"""
       font-size: 16px !important;
       line-height: 1.05 !important;
       overflow-wrap: anywhere !important;
-    }
-  }
-
-  @media (min-width: 700px) {
-    html.uhc-android .homepage .cardContent.cardRows .rowItem {
-      flex-basis: calc(33.333% - 8px) !important;
-      width: calc(33.333% - 8px) !important;
-      max-width: calc(33.333% - 4px) !important;
     }
   }
 
