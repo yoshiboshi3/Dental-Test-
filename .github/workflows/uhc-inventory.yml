@@ -75,6 +75,36 @@ jobs:
           curl -fsSL https://www.bgreco.net/homestuck_s.html -o interactive-research/bgreco.html
           grep -ni "interactive" interactive-research/bgreco.html | head -100 > interactive-research/bgreco-interactive-grep.txt || true
 
+      - name: Fetch MSPA Wiki Flash-page source
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.parse, json, pathlib
+          urls=[
+            "https://mspaintadventures.fandom.com/api.php?action=parse&page=List_of_Flash_pages&prop=wikitext&format=json&origin=*",
+            "https://mspaintadventures.fandom.com/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles=List_of_Flash_pages&format=json&origin=*"
+          ]
+          out=pathlib.Path("interactive-research")
+          for i,u in enumerate(urls):
+              try:
+                  req=urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 UHC-Android-research"})
+                  data=urllib.request.urlopen(req,timeout=30).read()
+                  (out/f"fandom-api-{i}.json").write_bytes(data)
+                  obj=json.loads(data)
+                  if "parse" in obj:
+                      wt=obj["parse"]["wikitext"]["*"]
+                      (out/"flash-pages.wikitext").write_text(wt,encoding="utf-8")
+                      keys=("click","keyboard","spacebar","interactive","game","select","secret","button","arrow","mouse","password","walkaround")
+                      hits=[]
+                      lines=wt.splitlines()
+                      for n,line in enumerate(lines,1):
+                          if any(k in line.lower() for k in keys):
+                              hits.append(f"{n}: {line}")
+                      (out/"flash-pages-interaction-hits.txt").write_text("\n".join(hits),encoding="utf-8")
+                      break
+              except Exception as e:
+                  (out/f"fandom-api-{i}-error.txt").write_text(repr(e))
+          PY
+
       - uses: actions/upload-artifact@v4
         with:
           name: homestuck-interactive-research
