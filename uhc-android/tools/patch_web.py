@@ -21,6 +21,90 @@ s = "\n".join(
     line for line in s.splitlines()
     if "goatcounter" not in line and "gc.zgo.at" not in line
 )
+
+android_css = r"""
+<style id="uhc-android-layout">
+  html.uhc-android, html.uhc-android body {
+    overscroll-behavior: none;
+  }
+
+  /* The upstream web build uses a 17px / 10px desktop nav. On a touch device
+     that is visually tiny and a poor tap target. Keep the original look, but
+     make the whole banner finger-friendly and let it wrap when necessary. */
+  html.uhc-android .navBanner {
+    min-height: 36px !important;
+    height: auto !important;
+    max-width: 100vw !important;
+  }
+  html.uhc-android .navBanner .navList {
+    min-height: 36px !important;
+    height: auto !important;
+    flex-wrap: wrap !important;
+    padding: 1px 6px !important;
+    box-sizing: border-box !important;
+  }
+  html.uhc-android .navBanner .candyCorn {
+    display: none !important;
+  }
+  html.uhc-android .navBanner ul {
+    height: auto !important;
+    max-height: none !important;
+    font-size: 13px !important;
+    line-height: 16px !important;
+    flex-wrap: nowrap !important;
+  }
+  html.uhc-android .navBanner li a {
+    display: inline-flex !important;
+    min-height: 32px !important;
+    align-items: center !important;
+    padding: 0 3px !important;
+  }
+
+  /* Fold-open archive layout: preserve readable text while returning the
+     desktop collection's side-by-side archive rows. The cover display stays
+     single-column; the wider inner display becomes a two-column archive. */
+  html.uhc-android .homepage .card {
+    max-width: 100% !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+
+  @media (min-width: 420px) {
+    html.uhc-android .homepage .cardContent.cardRows {
+      gap: 0 8px !important;
+      align-items: stretch !important;
+    }
+    html.uhc-android .homepage .cardContent.cardRows .rowItem {
+      flex: 1 1 calc(50% - 8px) !important;
+      width: calc(50% - 8px) !important;
+      max-width: calc(50% - 4px) !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+      align-items: flex-start !important;
+    }
+    html.uhc-android .homepage .cardContent.cardRows .rowItem .description {
+      min-width: 0 !important;
+      padding-left: 8px !important;
+      padding-right: 4px !important;
+    }
+    html.uhc-android .homepage .cardContent.cardRows .rowItem .description h2 {
+      font-size: 16px !important;
+      line-height: 1.05 !important;
+      overflow-wrap: anywhere !important;
+    }
+  }
+
+  @media (min-width: 700px) {
+    html.uhc-android .homepage .cardContent.cardRows .rowItem {
+      flex-basis: calc(33.333% - 8px) !important;
+      width: calc(33.333% - 8px) !important;
+      max-width: calc(33.333% - 4px) !important;
+    }
+  }
+</style>
+<script>document.documentElement.classList.add("uhc-android");</script>
+"""
+s = s.replace("</head>", android_css + "\n</head>")
 write("public/index.html", s)
 
 # Remove the hosted fork's authentication gate. Android is a local single-user app.
