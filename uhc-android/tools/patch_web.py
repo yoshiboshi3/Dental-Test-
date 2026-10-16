@@ -131,20 +131,15 @@ write("src/App.vue", s)
 # Bundle the fork's self-hosted Ruffle files into the APK and point every SWF
 # iframe at that local runtime instead.
 s = read("src/components/UIElements/MediaEmbed.vue")
-old_ruffle = """        let scriptTag;
-        if (this.$isWebApp) {
-          scriptTag =
-            '<script src="https://unpkg.com/@ruffle-rs/ruffle"><\\/script>';
-        } else {
-          scriptTag = \`<script src="\${this.$getResourceURL(
-            "assets://js/ruffle/ruffle.js"
-          )}"><\\/script>\`;
-        }"""
-new_ruffle = """        const scriptTag =
-          \`<script src="\${window.location.origin}/ruffle/ruffle.js"><\\/script>\`;"""
-if old_ruffle not in s:
-    raise RuntimeError("Ruffle CDN block not found")
-s = s.replace(old_ruffle, new_ruffle)
+ruffle_start = s.index("        let scriptTag;")
+ruffle_end = s.index("        // Inject Ruffle config", ruffle_start)
+s = (
+    s[:ruffle_start]
+    + r'''        const scriptTag =
+          `<script src="${window.location.origin}/ruffle/ruffle.js"><\/script>`;
+'''
+    + s[ruffle_end:]
+)
 write("src/components/UIElements/MediaEmbed.vue", s)
 
 # Restore local-only persistence. The hosted fork moved save/settings data to an
