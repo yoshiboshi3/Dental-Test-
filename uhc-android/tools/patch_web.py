@@ -906,7 +906,7 @@ export default {
 .tt { color:#e5a800; } .gg { color:#00b8d4; }
 .bottomArrow { padding:18px 24px 30px; font-size:23px; text-decoration:underline; color:#03c; }
 </style>
-''''''
+'''
 write("src/components/SystemPages/X2ComboPreview.vue", x2_preview)
 
 # Register the new preview route/component.
