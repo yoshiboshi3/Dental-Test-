@@ -101,6 +101,112 @@ android_css = r"""
       max-width: calc(33.333% - 4px) !important;
     }
   }
+
+  /*
+   * A6A5A1 x2 Combo pages are intentionally 1660px wide on desktop.
+   * On Android/Fold, preserve the two simultaneous pages but reflow the
+   * special component to exactly one viewport width instead of requiring
+   * horizontal scrolling.
+   */
+  html.uhc-android [data-component="x2Combo"] {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    align-items: stretch !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .navBanners,
+  html.uhc-android [data-component="x2Combo"] .pageFrame {
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .navBanners {
+    display: flex !important;
+    gap: 6px !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .navBanners .navBanner {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .navBanners .navSpacer {
+    display: none !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .pageFrame {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .pageContent {
+    flex: 1 1 0 !important;
+    width: calc(50% - 4px) !important;
+    max-width: calc(50% - 4px) !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .leftPage {
+    margin-right: 0 !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .mediaContent,
+  html.uhc-android [data-component="x2Combo"] .media {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .mediaContent .pageTitle {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    font-size: clamp(18px, 3.2vw, 30px) !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .panel,
+  html.uhc-android [data-component="x2Combo"] .panel img,
+  html.uhc-android [data-component="x2Combo"] .panel video,
+  html.uhc-android [data-component="x2Combo"] .panel canvas {
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] iframe.mediaembed {
+    max-width: 100% !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .textContent {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .textContent * {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html.uhc-android [data-component="x2Combo"] .footer {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
 </style>
 <script>document.documentElement.classList.add("uhc-android");</script>
 """
