@@ -490,17 +490,45 @@ android_css = r"""
   html.uhc-android [data-component="MUSIC"] .pageContent {
     width:100% !important; max-width:100% !important; min-width:0 !important;
     box-sizing:border-box !important; padding:18px !important;
+    display:grid !important; grid-template-columns:minmax(0,1fr) 135px !important;
+    gap:18px !important; align-items:start !important;
   }
   html.uhc-android [data-component="MUSIC"] .leftColumn {
-    width:calc(100% - 155px) !important; min-width:0 !important;
+    width:auto !important; max-width:100% !important; min-width:0 !important;
+    float:none !important;
   }
   html.uhc-android [data-component="MUSIC"] .rightColumn {
-    max-width:135px !important; margin-left:18px !important;
+    width:135px !important; max-width:135px !important; min-width:0 !important;
+    margin:0 !important; float:none !important;
   }
   html.uhc-android [data-component="MUSIC"] .trackPage,
   html.uhc-android [data-component="MUSIC"] .albumPage {
     width:100% !important; max-width:100% !important; min-width:0 !important;
   }
+  html.uhc-android [data-component="MUSIC"] .trackPage {
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(260px,350px) !important;
+    column-gap:20px !important;
+    align-items:start !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackPage .nameSection,
+  html.uhc-android [data-component="MUSIC"] .trackPage .info {
+    grid-column:1 !important; width:auto !important; max-width:100% !important;
+    min-width:0 !important; float:none !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackPage .middleColumn {
+    grid-column:2 !important; grid-row:1 / span 3 !important;
+    width:100% !important; max-width:350px !important; float:none !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackPage .commentaryContainer {
+    grid-column:1 / -1 !important; width:100% !important;
+  }
+  html.uhc-android [data-component="MUSIC"] .trackTitle,
+  html.uhc-android [data-component="MUSIC"] .byArtist,
+  html.uhc-android [data-component="MUSIC"] .commentary {
+    overflow-wrap:anywhere !important;
+  }
+
   html.uhc-android [data-component="MUSIC"] .trackPage .info,
   html.uhc-android [data-component="MUSIC"] .trackPage .nameSection,
   html.uhc-android [data-component="MUSIC"] .albumPage .info,
@@ -513,6 +541,9 @@ android_css = r"""
   @media (max-width: 760px) {
     html.uhc-android [data-component="MUSIC"] .pageContent {
       display:flex !important; flex-direction:column !important; padding:12px !important;
+    }
+    html.uhc-android [data-component="MUSIC"] .trackPage {
+      display:flex !important; flex-direction:column !important;
     }
     html.uhc-android [data-component="MUSIC"] .leftColumn {
       width:100% !important; float:none !important;
@@ -593,8 +624,9 @@ android_css = r"""
   const GAME_FLASH_IDS=new Set([
     '00253','00476','01358','02791','03077','03318','03435','03692',
     '04817','04822','04824','05424',
-    '05711','05723','05737','05756','05760'
+    '05708','05709','05711','05714','05721','05723','05737','05756','05760','05764'
   ]);
+  const TRICKSTER_GAME_PAGES=new Set([5708,5709,5711,5714,5721,5723,5737,5756,5760,5764]);
   let activeGameWindow=null, activeGameKind=null, activeGameFlashId=null;
   let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
   let arrowMercy=null, arrowTapCount=0, mouseMode=false;
@@ -605,7 +637,7 @@ android_css = r"""
     if(!activeGameWindow)return;
     const type=(activeGameKind==='ruffle')?'uhcFlashInput':'uhcSburbInput';
     try{activeGameWindow.postMessage({type:type,code:code,key:key,down:down},'*');}catch(e){}
-    if(activeGameFlashId==='05756'&&(code===37||code===39)&&down){
+    if(currentHomestuckPage()===5756&&(code===37||code===39)&&down){
       arrowTapCount++;
       if(arrowTapCount>=100)ensureArrowMercy().classList.add('visible');
     }
@@ -622,7 +654,7 @@ android_css = r"""
       // Dirk's Trickster sidle page expects keyboard-repeat-like discrete
       // arrow presses. A physical keyboard repeats while held; touch does not,
       // so recreate that behavior only on this one ridiculous page.
-      if(activeGameFlashId==='05756'&&(code===37||code===39)){
+      if(currentHomestuckPage()===5756&&(code===37||code===39)){
         repeatDelay=setTimeout(()=>{
           send(code,key,false);
           repeatTimer=setInterval(pulse,34);
@@ -772,7 +804,7 @@ android_css = r"""
     arrowMercy=document.createElement('button');arrowMercy.id='uhcArrowMercy';
     arrowMercy.textContent='OK, THAT\'S ENOUGH →';
     arrowMercy.addEventListener('click',()=>{
-      if(activeGameFlashId!=='05756')return;
+      if(currentHomestuckPage()!==5756)return;
       let remaining=Math.max(0,1111-arrowTapCount),sent=0;
       const batch=()=>{
         for(let i=0;i<18&&sent<remaining;i++,sent++){
@@ -826,7 +858,7 @@ android_css = r"""
     returnSelectionBtn.id='uhcReturnSelection';
     returnSelectionBtn.textContent='↩ RETURN TO SELECTION';
     returnSelectionBtn.addEventListener('click',()=>{
-      const url=localStorage.getItem('uhc.android.lastSelectorUrl');
+      const url=sessionStorage.getItem('uhc.android.selectorUrl');
       if(url)window.location.href=url;
     });
     document.body.appendChild(returnSelectionBtn);
@@ -838,39 +870,35 @@ android_css = r"""
     return m ? Number(m[1]) : null;
   }
 
+  const CHARACTER_SELECTOR_PAGES=new Set([
+    4121, 4469,
+    5034, 5052, 5070, 5078, 5084, 5137,
+    6284, 6299,
+    7486
+  ]);
+
   function isCharacterSelector(){
     const n=currentHomestuckPage();
-    const knownPages=new Set([4118,4159,4191,4466,5031,5049,5067,5075,5081,5136]);
-    const selectorFlashIds=new Set([
-      '06277','06379','06394','06398','06402','06413',
-      '07482','07668','07677','07682','07689','07692','07696',
-      '07709','07721','07729','07762','07800','07905'
-    ]);
-    let flashMatch=false;
-    document.querySelectorAll('iframe.mediaembed[data-flash-id]').forEach(f=>{
-      if(selectorFlashIds.has(f.getAttribute('data-flash-id')||''))flashMatch=true;
-    });
-    const title=(document.querySelector('.pageTitle')?.textContent||'').trim().toLowerCase();
-    return flashMatch || knownPages.has(n) || title==='select character.';
+    return n!=null && CHARACTER_SELECTOR_PAGES.has(n);
   }
 
   function updateSelectorUX(){
     const selector=isCharacterSelector();
     ensureSelectorHint().classList.toggle('visible',selector);
 
-    const iframes=[...document.querySelectorAll('iframe.mediaembed[data-flash-id]')];
-    iframes.forEach(f=>{
+    document.querySelectorAll('iframe.mediaembed[data-flash-id]').forEach(f=>{
       try{f.contentWindow.postMessage({type:'uhcHoverSelectMode',enabled:selector},'*');}catch(_){}
     });
 
     const n=currentHomestuckPage();
     if(selector&&n!=null){
-      localStorage.setItem('uhc.android.lastSelectorUrl',window.location.pathname);
-      localStorage.setItem('uhc.android.lastSelectorPage',String(n));
+      sessionStorage.setItem('uhc.android.selectorUrl',window.location.pathname);
+      sessionStorage.setItem('uhc.android.selectorPage',String(n));
       ensureReturnSelection().classList.remove('visible');
     }else{
-      const saved=Number(localStorage.getItem('uhc.android.lastSelectorPage')||0);
-      const show=n!=null&&saved>0&&n>saved&&n<=saved+180;
+      const savedUrl=sessionStorage.getItem('uhc.android.selectorUrl');
+      const savedPage=Number(sessionStorage.getItem('uhc.android.selectorPage')||0);
+      const show=!!savedUrl && n!=null && savedPage>0 && n>savedPage && n-savedPage<650;
       ensureReturnSelection().classList.toggle('visible',show);
     }
   }
@@ -969,7 +997,10 @@ android_css = r"""
     let found=null;
     document.querySelectorAll('iframe.mediaembed[data-flash-id]').forEach(f=>{
       const id=f.getAttribute('data-flash-id')||'';
-      if(GAME_FLASH_IDS.has(id)&&document.contains(f))found={window:f.contentWindow,id:id};
+      const routePage=currentHomestuckPage();
+      if((GAME_FLASH_IDS.has(id)||TRICKSTER_GAME_PAGES.has(routePage))&&document.contains(f)){
+        found={window:f.contentWindow,id:id};
+      }
     });
     if(found){
       if(activeGameWindow!==found.window||activeGameKind!=='ruffle'){
@@ -1065,6 +1096,25 @@ methods_new = """  methods: {
 if methods_marker not in s:
     raise RuntimeError("Track methods marker not found")
 s = s.replace(methods_marker, methods_new, 1)
+mounted_old = """  mounted(){
+    if (this.track.commentary && this.$refs.commentary) this.filterCommentaryLinksAndImages()
+  }
+}"""
+mounted_new = """  mounted(){
+    if (this.track.commentary && this.$refs.commentary) this.filterCommentaryLinksAndImages()
+    if (this.track && this.track.bandcampId) this.openSiteWidePlayer()
+  },
+  watch: {
+    'track.directory'() {
+      this.$nextTick(() => {
+        if (this.track && this.track.bandcampId) this.openSiteWidePlayer()
+      })
+    }
+  }
+}"""
+if mounted_old not in s:
+    raise RuntimeError("Track mounted block not found")
+s = s.replace(mounted_old, mounted_new, 1)
 write("src/components/Music/Track.vue", s)
 
 # Tag special Android layouts so the shell can scale them responsively.
