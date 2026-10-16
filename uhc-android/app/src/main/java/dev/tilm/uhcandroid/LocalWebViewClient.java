@@ -114,7 +114,6 @@ final class LocalWebViewClient extends WebViewClient {
                 "#uhcOpenboundTouch .a{right:18px;bottom:6px;width:86px;height:70px;border-radius:35px;" +
                 "font-size:14px;letter-spacing:1px;background:rgba(120,0,120,.58)}" +
                 "</style>" +
-                openboundTouch +
                 "<script>(function(){" +
                 "function eventFor(type,code,key){var e=new Event(type,{bubbles:true,cancelable:true});" +
                 "try{Object.defineProperty(e,'keyCode',{value:code});Object.defineProperty(e,'which',{value:code});" +
@@ -137,7 +136,7 @@ final class LocalWebViewClient extends WebViewClient {
                 "bind(c.querySelector('.l'),37,'ArrowLeft');bind(c.querySelector('.r'),39,'ArrowRight');" +
                 "bind(c.querySelector('.a'),32,' ');}" +
                 "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();" +
-                "})();<\/script>"
+                "})();</script>"
         ) : "";
 
         String injection =
@@ -148,6 +147,7 @@ final class LocalWebViewClient extends WebViewClient {
                 "img,video,object,embed,iframe,canvas{max-width:100%!important;}" +
                 "pre{white-space:pre-wrap!important;overflow-wrap:anywhere!important;}" +
                 "</style>" +
+                openboundTouch +
                 "<script>(function(){" +
                 "function fit(){try{" +
                 "document.body.style.zoom='';document.body.style.width='';" +
