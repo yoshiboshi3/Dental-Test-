@@ -354,12 +354,14 @@ android_css = r"""
   /* Utility keys live in the middle with their own space. */
   #uhcSburbController .utility {
     position:absolute; left:50%; top:32px; transform:translateX(-50%);
-    width:178px; height:76px; pointer-events:none;
+    width:240px; height:76px; pointer-events:none;
   }
   #uhcSburbController .shoulder {
-    width:76px; height:34px; border-radius:9px; font-size:10px; top:0;
+    width:70px; height:34px; border-radius:9px; font-size:10px; top:0;
   }
   #uhcSburbController .shift{left:0;border-color:#cf8cff;color:#e2b9ff}
+  #uhcSburbController .mouse{left:85px;border-color:#ff9c5c;color:#ffc39d}
+  #uhcSburbController .mouse.active{background:rgba(125,55,10,.92);box-shadow:0 0 10px rgba(255,150,70,.5)}
   #uhcSburbController .enter{right:0;border-color:#70ffe8;color:#a5fff2}
   #uhcSburbController .utilLabel {
     position:absolute; left:0; right:0; bottom:5px; text-align:center;
@@ -388,8 +390,9 @@ android_css = r"""
     #uhcSburbController .d{left:129px;bottom:8px}
     #uhcSburbController .l{left:97px;bottom:40px}
     #uhcSburbController .r{left:161px;bottom:40px}
-    #uhcSburbController .utility{width:144px;top:30px}
-    #uhcSburbController .shoulder{width:64px}
+    #uhcSburbController .utility{width:198px;top:30px}
+    #uhcSburbController .shoulder{width:58px}
+    #uhcSburbController .mouse{left:70px}
     #uhcSburbController .abxy{right:8px;transform:scale(.92);transform-origin:right bottom}
   }
 
@@ -413,6 +416,15 @@ android_css = r"""
     box-shadow:0 4px 16px rgba(0,0,0,.4);
   }
   #uhcArrowMercy.visible { opacity:1; pointer-events:auto; transform:translateY(0); }
+
+  #uhcDamaraTranslate {
+    position:fixed; left:50%; bottom:154px; transform:translateX(-50%);
+    z-index:2147483120; display:none; border:2px solid #a10000; border-radius:12px;
+    padding:9px 14px; background:rgba(18,0,0,.86); color:#ffd8d8;
+    font:bold 11px monospace; box-shadow:0 3px 14px rgba(0,0,0,.35);
+  }
+  #uhcDamaraTranslate.visible { display:block; }
+  #uhcDamaraTranslate.active { background:rgba(95,0,0,.94); color:#fff; }
 
   #uhcSpecialScrollRail {
     position:fixed; right:8px; top:50%; transform:translateY(-50%);
@@ -447,7 +459,8 @@ android_css = r"""
   ]);
   let activeGameWindow=null, activeGameKind=null, activeGameFlashId=null;
   let controller=null, scrollRail=null, activeSpecialTab=null, horizontalHint=null;
-  let arrowMercy=null, arrowTapCount=0;
+  let arrowMercy=null, arrowTapCount=0, mouseMode=false;
+  let damaraToggle=null, damaraTranslate=false;
 
   function send(code,key,down){
     if(!activeGameWindow)return;
@@ -485,7 +498,7 @@ android_css = r"""
     controller.innerHTML='<div class="plate"></div><div class="brand">SBURB CONTROLLER</div>'+
       '<div class="joy"><span class="joyLabel">MOVE</span></div>'+
       '<button class="u">▲</button><button class="d">▼</button><button class="l">◀</button><button class="r">▶</button>'+
-      '<div class="utility"><button class="shoulder shift">SHIFT</button><button class="shoulder enter">ENTER</button><div class="utilLabel">EXTRA INPUTS</div></div>'+
+      '<div class="utility"><button class="shoulder shift">SHIFT</button><button class="shoulder mouse">MOUSE</button><button class="shoulder enter">ENTER</button><div class="utilLabel">EXTRA INPUTS</div></div>'+
       '<div class="abxy"><button class="a">A</button><button class="b">B</button><button class="x">X</button><button class="y">Y</button></div>';
     document.body.appendChild(controller);
     bindJoystick(controller.querySelector('.joy'));
@@ -494,8 +507,35 @@ android_css = r"""
     bindButton(controller.querySelector('.a'),32,' ');bindButton(controller.querySelector('.b'),17,'Control');
     bindButton(controller.querySelector('.x'),88,'x');bindButton(controller.querySelector('.y'),90,'z');
     bindButton(controller.querySelector('.shift'),16,'Shift');bindButton(controller.querySelector('.enter'),13,'Enter');
+    const mouseBtn=controller.querySelector('.mouse');
+    mouseBtn.addEventListener('click',e=>{
+      e.preventDefault();
+      mouseMode=!mouseMode;
+      mouseBtn.classList.toggle('active',mouseMode);
+      if(activeGameWindow&&activeGameKind==='sburb'){
+        try{activeGameWindow.postMessage({type:'uhcSburbMouseMode',enabled:mouseMode},'*');}catch(_){}
+      }
+    });
     return controller;
   }
+  function ensureDamaraToggle(){
+    if(damaraToggle)return damaraToggle;
+    damaraToggle=document.createElement('button');
+    damaraToggle.id='uhcDamaraTranslate';
+    damaraToggle.textContent='DAMARA TRANSLATION: OFF';
+    damaraToggle.addEventListener('click',e=>{
+      e.preventDefault();
+      damaraTranslate=!damaraTranslate;
+      damaraToggle.classList.toggle('active',damaraTranslate);
+      damaraToggle.textContent='DAMARA TRANSLATION: '+(damaraTranslate?'ON':'OFF');
+      if(activeGameWindow&&activeGameKind==='sburb'){
+        try{activeGameWindow.postMessage({type:'uhcDamaraTranslate',enabled:damaraTranslate},'*');}catch(_){}
+      }
+    });
+    document.body.appendChild(damaraToggle);
+    return damaraToggle;
+  }
+
   function ensureHorizontalHint(){
     if(horizontalHint)return horizontalHint;
     horizontalHint=document.createElement('div');horizontalHint.id='uhcHorizontalHint';
@@ -579,6 +619,7 @@ android_css = r"""
       if(activeGameWindow!==found.window||activeGameKind!=='ruffle'){
         activeGameWindow=found.window;activeGameKind='ruffle';activeGameFlashId=found.id;
         arrowTapCount=0;if(arrowMercy)arrowMercy.classList.remove('visible');
+        if(damaraToggle)damaraToggle.classList.remove('visible');
       }
       ensureController().classList.add('visible');
       return true;
@@ -591,9 +632,14 @@ android_css = r"""
     if(d.type==='uhcSburbReady'){
       activeGameWindow=e.source;activeGameKind='sburb';activeGameFlashId=null;
       ensureController().classList.add('visible');
+      try{activeGameWindow.postMessage({type:'uhcSburbMouseMode',enabled:mouseMode},'*');}catch(_){}
+      try{activeGameWindow.postMessage({type:'uhcDamaraTranslate',enabled:damaraTranslate},'*');}catch(_){}
+    }else if(d.type==='uhcDamaraSeen'&&e.source===activeGameWindow){
+      ensureDamaraToggle().classList.add('visible');
     }else if(d.type==='uhcSburbGone'&&e.source===activeGameWindow&&activeGameKind==='sburb'){
       activeGameWindow=null;activeGameKind=null;activeGameFlashId=null;
       if(controller)controller.classList.remove('visible');
+      if(damaraToggle)damaraToggle.classList.remove('visible');
     }
   });
 
