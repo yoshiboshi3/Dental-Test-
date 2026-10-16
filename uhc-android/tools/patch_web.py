@@ -301,6 +301,198 @@ android_css = r"""
   }
 </style>
 <script>document.documentElement.classList.add("uhc-android");</script>
+<style id="uhc-android-shell-overlays">
+  #uhcSburbController {
+    position:fixed; left:10px; right:10px; bottom:8px; height:138px;
+    z-index:2147483000; display:none; pointer-events:none;
+    font-family:monospace; -webkit-user-select:none; user-select:none;
+  }
+  #uhcSburbController.visible { display:block; }
+  #uhcSburbController * { box-sizing:border-box; }
+  #uhcSburbController .plate {
+    position:absolute; inset:0; border:2px solid rgba(88,255,244,.60);
+    border-radius:20px; background:linear-gradient(180deg,rgba(11,19,30,.34),rgba(4,9,17,.72));
+    box-shadow:inset 0 0 0 2px rgba(255,0,170,.10),0 4px 18px rgba(0,0,0,.35);
+    backdrop-filter:blur(2px);
+  }
+  #uhcSburbController .brand {
+    position:absolute; left:50%; top:7px; transform:translateX(-50%);
+    color:rgba(210,255,250,.88); font:bold 10px monospace; letter-spacing:2px;
+    text-shadow:0 1px #000; pointer-events:none;
+  }
+  #uhcSburbController button {
+    pointer-events:auto; position:absolute; border:2px solid rgba(255,255,255,.78);
+    background:rgba(9,14,22,.78); color:#fff; font:bold 18px monospace;
+    touch-action:none; -webkit-tap-highlight-color:transparent;
+    box-shadow:inset 0 -3px rgba(0,0,0,.35);
+  }
+  #uhcSburbController .joy {
+    pointer-events:auto; position:absolute; left:12px; bottom:10px; width:108px; height:108px;
+    border-radius:54px; border:3px solid rgba(77,235,255,.82);
+    background:radial-gradient(circle,rgba(27,52,68,.72),rgba(4,10,18,.84));
+    touch-action:none; box-shadow:inset 0 0 16px rgba(0,220,255,.28);
+  }
+  #uhcSburbController .joy:after {
+    content:''; position:absolute; left:36px; top:36px; width:32px; height:32px;
+    border-radius:50%; background:rgba(230,255,255,.88); border:2px solid rgba(0,0,0,.55);
+  }
+  #uhcSburbController .joyLabel {
+    position:absolute; left:41px; bottom:53px; color:#061016; font:bold 8px monospace;
+    z-index:1; pointer-events:none;
+  }
+  #uhcSburbController .u{left:154px;bottom:82px;width:42px;height:42px;border-radius:9px}
+  #uhcSburbController .d{left:154px;bottom:10px;width:42px;height:42px;border-radius:9px}
+  #uhcSburbController .l{left:118px;bottom:46px;width:42px;height:42px;border-radius:9px}
+  #uhcSburbController .r{left:190px;bottom:46px;width:42px;height:42px;border-radius:9px}
+  #uhcSburbController .abxy{position:absolute;right:10px;bottom:10px;width:145px;height:112px;pointer-events:none}
+  #uhcSburbController .a,#uhcSburbController .b,#uhcSburbController .x,#uhcSburbController .y{
+    width:46px;height:46px;border-radius:50%;font-size:17px
+  }
+  #uhcSburbController .a{right:0;bottom:33px;border-color:#80ff9a;color:#9affaa}
+  #uhcSburbController .b{right:40px;bottom:0;border-color:#ff7272;color:#ff9d9d}
+  #uhcSburbController .x{right:40px;bottom:66px;border-color:#72b9ff;color:#a7d4ff}
+  #uhcSburbController .y{right:80px;bottom:33px;border-color:#ffe36b;color:#fff1a5}
+  #uhcSburbController .shoulder{width:56px;height:28px;border-radius:9px;font-size:9px;bottom:101px}
+  #uhcSburbController .shift{left:254px;border-color:#cf8cff;color:#e2b9ff}
+  #uhcSburbController .enter{right:170px;border-color:#70ffe8;color:#a5fff2}
+
+  #uhcSpecialScrollRail {
+    position:fixed; right:8px; top:50%; transform:translateY(-50%);
+    z-index:2147483100; display:none; width:52px; padding:5px;
+    border-radius:16px; border:2px solid rgba(255,255,255,.72);
+    background:rgba(15,15,15,.72); box-shadow:0 3px 14px rgba(0,0,0,.35);
+  }
+  #uhcSpecialScrollRail.visible { display:block; }
+  #uhcSpecialScrollRail button {
+    width:38px; height:48px; margin:2px; border-radius:11px; border:1px solid #ddd;
+    background:rgba(245,245,245,.92); color:#111; font:bold 22px sans-serif;
+    touch-action:none; -webkit-tap-highlight-color:transparent;
+  }
+  #uhcSpecialScrollRail .label {
+    color:white; font:8px sans-serif; text-align:center; writing-mode:vertical-rl;
+    margin:4px auto; height:44px; letter-spacing:1px;
+  }
+
+  html.uhc-android [data-component="FULLSCREENFLASH"] .pageFrame {
+    width:100% !important; max-width:100vw !important; justify-content:center !important;
+  }
+  html.uhc-android [data-component="FULLSCREENFLASH"] .pageContent {
+    transform-origin:top center !important;
+    max-width:none !important;
+  }
+</style>
+<script>
+(function(){
+  let activeSburbWindow=null, controller=null, scrollRail=null, activeSpecialTab=null;
+
+  function send(code,key,down){
+    if(!activeSburbWindow) return;
+    try{activeSburbWindow.postMessage({type:'uhcSburbInput',code:code,key:key,down:down},'*');}catch(e){}
+  }
+  function bindButton(btn,code,key){
+    let down=false;
+    const press=e=>{e.preventDefault();if(down)return;down=true;send(code,key,true);};
+    const release=e=>{if(e)e.preventDefault();if(!down)return;down=false;send(code,key,false);};
+    btn.addEventListener('pointerdown',press); btn.addEventListener('pointerup',release);
+    btn.addEventListener('pointercancel',release); btn.addEventListener('pointerleave',release);
+    btn.addEventListener('contextmenu',e=>e.preventDefault());
+  }
+  function bindJoystick(el){
+    const held={87:false,65:false,83:false,68:false};
+    const set=(code,on,key)=>{if(held[code]===on)return;held[code]=on;send(code,key,on);};
+    const update=e=>{
+      const r=el.getBoundingClientRect(), x=e.clientX-(r.left+r.width/2), y=e.clientY-(r.top+r.height/2), dead=13;
+      set(65,x<-dead,'a'); set(68,x>dead,'d'); set(87,y<-dead,'w'); set(83,y>dead,'s');
+    };
+    const clear=()=>{set(65,false,'a');set(68,false,'d');set(87,false,'w');set(83,false,'s');};
+    el.addEventListener('pointerdown',e=>{e.preventDefault();try{el.setPointerCapture(e.pointerId)}catch(_){}update(e);});
+    el.addEventListener('pointermove',e=>{if(e.buttons||e.pressure>0)update(e);});
+    el.addEventListener('pointerup',e=>{e.preventDefault();clear();}); el.addEventListener('pointercancel',clear);
+  }
+  function ensureController(){
+    if(controller)return controller;
+    controller=document.createElement('div'); controller.id='uhcSburbController';
+    controller.innerHTML='<div class="plate"></div><div class="brand">SBURB CONTROLLER</div>'+
+      '<div class="joy"><span class="joyLabel">MOVE</span></div>'+
+      '<button class="u">▲</button><button class="d">▼</button><button class="l">◀</button><button class="r">▶</button>'+
+      '<div class="abxy"><button class="a">A</button><button class="b">B</button><button class="x">X</button><button class="y">Y</button></div>'+
+      '<button class="shoulder shift">SHIFT</button><button class="shoulder enter">ENTER</button>';
+    document.body.appendChild(controller);
+    bindJoystick(controller.querySelector('.joy'));
+    bindButton(controller.querySelector('.u'),38,'ArrowUp'); bindButton(controller.querySelector('.d'),40,'ArrowDown');
+    bindButton(controller.querySelector('.l'),37,'ArrowLeft'); bindButton(controller.querySelector('.r'),39,'ArrowRight');
+    bindButton(controller.querySelector('.a'),32,' '); bindButton(controller.querySelector('.b'),17,'Control');
+    bindButton(controller.querySelector('.x'),88,'x'); bindButton(controller.querySelector('.y'),90,'z');
+    bindButton(controller.querySelector('.shift'),16,'Shift'); bindButton(controller.querySelector('.enter'),13,'Enter');
+    return controller;
+  }
+
+  function ensureScrollRail(){
+    if(scrollRail)return scrollRail;
+    scrollRail=document.createElement('div'); scrollRail.id='uhcSpecialScrollRail';
+    scrollRail.innerHTML='<button class="up">▲</button><div class="label">SCROLL</div><button class="down">▼</button>';
+    document.body.appendChild(scrollRail);
+    function hold(btn,dir){
+      let timer=null;
+      const step=()=>{if(activeSpecialTab)activeSpecialTab.scrollBy({top:dir*28,left:0,behavior:'auto'});};
+      const start=e=>{e.preventDefault();step();timer=setInterval(step,24);};
+      const stop=e=>{if(e)e.preventDefault();if(timer){clearInterval(timer);timer=null;}};
+      btn.addEventListener('pointerdown',start);btn.addEventListener('pointerup',stop);
+      btn.addEventListener('pointercancel',stop);btn.addEventListener('pointerleave',stop);
+    }
+    hold(scrollRail.querySelector('.up'),-1); hold(scrollRail.querySelector('.down'),1);
+    return scrollRail;
+  }
+
+  function fitSpecialPages(){
+    const root=document.querySelector('[data-component="FULLSCREENFLASH"]');
+    let crowbar=false;
+    activeSpecialTab=null;
+    if(root){
+      const tab=root.closest('.tabFrame');
+      const content=root.querySelector('.pageBody .pageContent');
+      const frame=root.querySelector('.pageBody .pageFrame');
+      const flash=root.querySelector('iframe.mediaembed[data-flash-id]');
+      if(tab&&content&&flash){
+        const natural=Math.max(650,Number(flash.getAttribute('width'))||950);
+        const available=Math.max(1,tab.clientWidth);
+        const fit=Math.min(1,available/natural);
+        content.style.zoom=String(fit);
+        content.style.width=natural+'px';
+        content.style.maxWidth='none';
+        content.style.marginLeft='auto';
+        content.style.marginRight='auto';
+        if(frame){frame.style.width='100%';frame.style.maxWidth='100%';frame.style.justifyContent='center';}
+        const id=flash.getAttribute('data-flash-id')||'';
+        crowbar=(id==='05492'||id==='05777');
+        if(crowbar) activeSpecialTab=tab;
+      }
+    }
+    ensureScrollRail().classList.toggle('visible',crowbar);
+  }
+
+  window.addEventListener('message',e=>{
+    const d=e.data||{};
+    if(d.type==='uhcSburbReady'){
+      activeSburbWindow=e.source;
+      ensureController().classList.add('visible');
+    }else if(d.type==='uhcSburbGone'&&e.source===activeSburbWindow){
+      activeSburbWindow=null;if(controller)controller.classList.remove('visible');
+    }
+  });
+
+  setInterval(()=>{
+    if(activeSburbWindow){
+      let alive=false;
+      document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentWindow===activeSburbWindow&&document.contains(f))alive=true;}catch(e){}});
+      if(!alive){activeSburbWindow=null;if(controller)controller.classList.remove('visible');}
+    }
+    fitSpecialPages();
+  },350);
+
+  window.addEventListener('resize',fitSpecialPages);
+})();
+</script>
 """
 s = s.replace("</head>", android_css + "\n</head>")
 write("public/index.html", s)
@@ -354,6 +546,19 @@ ruffle_config_insert = """              window.RufflePlayer = window.RufflePlaye
 if ruffle_config_marker not in s:
     raise RuntimeError("Ruffle config insertion point not found")
 s = s.replace(ruffle_config_marker, ruffle_config_insert, 1)
+# Expose the resolved Flash id to the Android shell for page-specific UI.
+swf_tag = """    @load="initIframe"
+    seamless
+    class="mediaembed"
+  />"""
+swf_tag_new = """    @load="initIframe"
+    seamless
+    :data-flash-id="flashProps.id"
+    class="mediaembed"
+  />"""
+if swf_tag not in s:
+    raise RuntimeError("SWF iframe tag marker not found")
+s = s.replace(swf_tag, swf_tag_new, 1)
 write("src/components/UIElements/MediaEmbed.vue", s)
 
 # The first Openbound/Meenah cutscene is overlaid separately from the HTML5
