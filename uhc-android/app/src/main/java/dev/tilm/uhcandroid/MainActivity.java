@@ -6,9 +6,11 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -30,6 +32,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        getWindow().setStatusBarColor(Color.rgb(64, 64, 64));
+        getWindow().setNavigationBarColor(Color.rgb(238, 238, 238));
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
 
         String saved = prefs.getString(KEY_TREE, null);
@@ -97,6 +101,7 @@ public final class MainActivity extends Activity {
         buttonParams.topMargin = dp(24);
         root.addView(pick, buttonParams);
 
+        applySystemBarInsets(root, pad, pad, pad, pad);
         setContentView(root);
     }
 
@@ -144,6 +149,7 @@ public final class MainActivity extends Activity {
         assetsParams.rightMargin = dp(4);
         root.addView(assets, assetsParams);
 
+        applySystemBarInsets(root, 0, 0, 0, 0);
         setContentView(root);
 
         if (!resolver.looksLikeUhcPack()) {
@@ -198,6 +204,37 @@ public final class MainActivity extends Activity {
             webView = null;
         }
         super.onDestroy();
+    }
+
+    private void applySystemBarInsets(View view, int baseLeft, int baseTop, int baseRight, int baseBottom) {
+        view.setOnApplyWindowInsetsListener((v, insets) -> {
+            int left;
+            int top;
+            int right;
+            int bottom;
+
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                left = bars.left;
+                top = bars.top;
+                right = bars.right;
+                bottom = bars.bottom;
+            } else {
+                left = insets.getSystemWindowInsetLeft();
+                top = insets.getSystemWindowInsetTop();
+                right = insets.getSystemWindowInsetRight();
+                bottom = insets.getSystemWindowInsetBottom();
+            }
+
+            v.setPadding(
+                    baseLeft + left,
+                    baseTop + top,
+                    baseRight + right,
+                    baseBottom + bottom
+            );
+            return insets;
+        });
+        view.requestApplyInsets();
     }
 
     private int dp(int value) {
