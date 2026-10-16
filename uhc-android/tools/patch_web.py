@@ -37,6 +37,9 @@ s = s.replace(
     auth_gate,
     "      // Android edition: local single-user app; no authentication gate.\n"
 )
+# This build targets Android on purpose, so the hosted site's generic
+# "Mobile Experience Limited" banner is misleading noise.
+s = s.replace("      <MobileNotification />\n", "")
 write("src/App.vue", s)
 
 # Restore local-only persistence. The hosted fork moved save/settings data to an
@@ -95,7 +98,18 @@ reload_repl = """        async reloadLocalStorage() {
                 ...((savedSettings && savedSettings.textOverride) || {})
               }
             };
-            if (savedTabs) this.tabData = savedTabs;
+            if (savedTabs) {
+              this.tabData = savedTabs;
+              Object.values(this.tabData.tabs || {}).forEach(tab => {
+                if (tab.url === "/index.html" || tab.url === "index.html") tab.url = "/";
+                if (Array.isArray(tab.history)) {
+                  tab.history = tab.history.map(u => (u === "/index.html" || u === "index.html") ? "/" : u);
+                }
+                if (Array.isArray(tab.future)) {
+                  tab.future = tab.future.map(u => (u === "/index.html" || u === "index.html") ? "/" : u);
+                }
+              });
+            }
             this.isAuthenticated = true;
             this.$logger.debug("Android local data loaded.");
           } catch (e) {
