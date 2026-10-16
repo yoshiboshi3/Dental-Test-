@@ -1,0 +1,77 @@
+name: Research Homestuck Interactive Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - uhc-android-prototype
+    paths:
+      - ".github/workflows/uhc-inventory.yml"
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch UHC data
+        run: |
+          git clone --depth=1 https://github.com/jennymaeleidig/unofficial-homestuck-collection-web.git /tmp/uhc-web
+
+      - name: Extract Homestuck candidate interactive pages
+        run: |
+          python3 - <<'PY'
+          import json, csv, re, collections, pathlib
+          src=pathlib.Path('/tmp/uhc-web/src/data/mspa.json')
+          data=json.loads(src.read_text())
+          story=data.get('story', data.get('mspa',{}).get('story',{}))
+          print('story pages',len(story))
+          out=pathlib.Path('interactive-research')
+          out.mkdir(exist_ok=True)
+
+          rows=[]
+          flags=collections.Counter()
+          mediaext=collections.Counter()
+          for key,p in story.items():
+              try: n=int(key)
+              except: continue
+              if n < 1893 or n > 10030: continue
+              flag=p.get('flag',[])
+              if isinstance(flag,str): flag=[flag]
+              for x in flag: flags[x]+=1
+              media=p.get('media',[]) or []
+              for m in media:
+                  ext=pathlib.Path(m.split('?',1)[0]).suffix.lower()
+                  mediaext[ext]+=1
+              candidate=any(str(m).lower().endswith(('.swf','.html','.htm')) for m in media)
+              candidate = candidate or any(x in {'SWFNAV','HSCROLL','X2COMBO','GAMEOVER','DOTA','S','FIREFLY'} for x in flag)
+              if candidate:
+                  content=re.sub('<[^>]+>',' ',p.get('content','') or '')
+                  content=re.sub(r'\s+',' ',content).strip()
+                  rows.append({
+                      'mspa_id': key,
+                      'viz_page': n-1900 if n>=1901 else f'beta-{n-1892}',
+                      'title': p.get('title',''),
+                      'flags': '|'.join(flag),
+                      'media': '|'.join(map(str,media)),
+                      'previous': p.get('previous',''),
+                      'next': '|'.join(map(str,p.get('next',[]) or [])),
+                      'content_snippet': content[:500],
+                  })
+
+          with open(out/'candidates.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.DictWriter(f,fieldnames=rows[0].keys())
+              w.writeheader(); w.writerows(rows)
+          (out/'flags.txt').write_text('\n'.join(f'{k}\t{v}' for k,v in flags.most_common()))
+          (out/'mediaext.txt').write_text('\n'.join(f'{k}\t{v}' for k,v in mediaext.most_common()))
+          (out/'summary.txt').write_text(f'candidates={len(rows)}\nflags={len(flags)}\n')
+          print('candidate rows',len(rows))
+          print('flags',flags)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: homestuck-interactive-research
+          path: interactive-research/*
+          retention-days: 7
