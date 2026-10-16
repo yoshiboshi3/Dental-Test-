@@ -65,7 +65,7 @@ jobs:
         env:
           ASSET_PACK_HREF: https://uhc-assets.local/
           ASSET_DIR: /assets/
-          APP_VERSION: 0.1.4-android
+          APP_VERSION: 0.1.5-android
           AUTH_SERVER_URL: ""
           NODE_OPTIONS: --max_old_space_size=8192
         run: |
@@ -102,24 +102,42 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      - name: Build unsigned release APK
         run: |
-          gradle -p uhc-android --no-daemon :app:assembleDebug --stacktrace
-          test -f uhc-android/app/build/outputs/apk/debug/app-debug.apk
+          gradle -p uhc-android --no-daemon :app:assembleRelease --stacktrace
+          test -f uhc-android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Sign with stable public prototype key
+        run: |
+          mkdir -p /tmp/uhc-sign deliverable
+          curl -fL --retry 3 \
+            https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8 \
+            -o /tmp/uhc-sign/testkey.pk8
+          curl -fL --retry 3 \
+            https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.x509.pem \
+            -o /tmp/uhc-sign/testkey.x509.pem
+
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f 4 \
+            uhc-android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            /tmp/uhc-sign/aligned.apk
+
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --key /tmp/uhc-sign/testkey.pk8 \
+            --cert /tmp/uhc-sign/testkey.x509.pem \
+            --out deliverable/UHC-Android-v0.1.5.apk \
+            /tmp/uhc-sign/aligned.apk
 
       - name: Inspect APK
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging uhc-android/app/build/outputs/apk/debug/app-debug.apk | head -20
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose uhc-android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging deliverable/UHC-Android-v0.1.5.apk | head -20
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs deliverable/UHC-Android-v0.1.5.apk
 
       - name: Package deliverables
         run: |
-          mkdir -p deliverable
-          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.4-debug.apk
           cp uhc-android/README.md deliverable/README.md
           cp uhc-android/WEB_FRONTEND_COMMIT.txt deliverable/WEB_FRONTEND_COMMIT.txt
 
-          zip -qr deliverable/UHC-Android-v0.1.4-source.zip uhc-android .github/workflows/uhc-android-build.yml \
+          zip -qr deliverable/UHC-Android-v0.1.5-source.zip uhc-android .github/workflows/uhc-android-build.yml \
             -x 'uhc-android/app/build/*' \
                'uhc-android/.gradle/*' \
                'uhc-android/app/src/main/assets/www/*'
@@ -129,7 +147,7 @@ jobs:
       - name: Upload APK and source checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: UHC-Android-v0.1.4
+          name: UHC-Android-v0.1.5
           path: deliverable/*
           if-no-files-found: error
           retention-days: 7
