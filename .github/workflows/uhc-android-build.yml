@@ -55,24 +55,151 @@ jobs:
           cd /tmp/uhc-web
           git rev-parse HEAD | tee "$GITHUB_WORKSPACE/uhc-android/WEB_FRONTEND_COMMIT.txt"
 
+      - name: Patch web fork for a local Android app
+        working-directory: /tmp/uhc-web
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # The web fork assumes a hosted website with a 650px fixed viewport.
+          # Android gets a real responsive viewport instead.
+          p = Path("public/index.html")
+          s = p.read_text()
+          s = s.replace(
+              '<meta name="viewport" content="initial-scale=0.0, width=650">',
+              '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">'
+          )
+          s = "\n".join(
+              line for line in s.splitlines()
+              if "goatcounter" not in line and "gc.zgo.at" not in line
+          )
+          p.write_text(s)
+
+          # The hosted fork added an account server. The Android edition is single-user
+          # and offline, so authentication is deliberately bypassed.
+          p = Path("src/App.vue")
+          s = p.read_text()
+          s = s.replace(
+              '''      // Only load the app if a user is authenticated (or in guest mode)
+              if (!this.$localData.root.isAuthenticated && !this.$root.guestMode) {
+                return false;
+              }
+
+          ''',
+              '''      // Android edition is a local, single-user offline app.
+          '''
+          )
+          p.write_text(s)
+
+          # Restore local-only persistence. The hosted fork moved saves/settings to
+          # an auth server; Android keeps them in WebView localStorage.
+          p = Path("src/store/localData.js")
+          s = p.read_text()
+          s = s.replace(
+              "isAuthenticated: false, // Add isAuthenticated property",
+              "isAuthenticated: true, // Android edition has no account/login layer"
+          )
+
+          save_re = re.compile(
+              r'''        async _saveLocalStorage\(\) \{.*?\n        \},\n        applySaveIfPending\(\) \{''',
+              re.S
+          )
+          save_repl = '''        async _saveLocalStorage() {
+          if (this.saveDebounce) {
+            clearTimeout(this.saveDebounce);
+            this.saveDebounce = undefined;
+          }
+          try {
+            localStorage.setItem("uhc.android.saveData", JSON.stringify(this.saveData));
+            localStorage.setItem("uhc.android.settings", JSON.stringify(this.settings));
+            localStorage.setItem("uhc.android.tabData", JSON.stringify(this.tabData));
+            this.$logger.debug("Android local data saved.");
+          } catch (e) {
+            this.$logger.error("Failed to save Android local data:", e);
+          }
+        },
+        applySaveIfPending() {'''
+          s, n = save_re.subn(save_repl, s, count=1)
+          assert n == 1, "_saveLocalStorage patch failed"
+
+          reload_re = re.compile(
+              r'''        async reloadLocalStorage\(\) \{.*?\n        \},\n        clearLocalStorage\(\) \{''',
+              re.S
+          )
+          reload_repl = '''        async reloadLocalStorage() {
+          this.applySaveIfPending();
+          try {
+            const savedData = JSON.parse(localStorage.getItem("uhc.android.saveData") || "null");
+            const savedSettings = JSON.parse(localStorage.getItem("uhc.android.settings") || "null");
+            const savedTabs = JSON.parse(localStorage.getItem("uhc.android.tabData") || "null");
+
+            this.assetDir = "web";
+            this.saveData = savedData || DEFAULT_SAVEDATA;
+            this.settings = {
+              ...DEFAULT_SETTINGS,
+              ...(savedSettings || {}),
+              newReader: {
+                ...DEFAULT_SETTINGS.newReader,
+                ...((savedSettings && savedSettings.newReader) || {})
+              },
+              textOverride: {
+                ...DEFAULT_SETTINGS.textOverride,
+                ...((savedSettings && savedSettings.textOverride) || {})
+              }
+            };
+            if (savedTabs) this.tabData = savedTabs;
+            this.isAuthenticated = true;
+            this.$logger.debug("Android local data loaded.");
+          } catch (e) {
+            this.$logger.error("Failed to load Android local data; using defaults:", e);
+            this.assetDir = "web";
+            this.saveData = DEFAULT_SAVEDATA;
+            this.settings = DEFAULT_SETTINGS;
+            this.tabData = DEFAULT_TABDATA;
+            this.isAuthenticated = true;
+          }
+        },
+        clearLocalStorage() {'''
+          s, n = reload_re.subn(reload_repl, s, count=1)
+          assert n == 1, "reloadLocalStorage patch failed"
+
+          s = s.replace(
+              '''        clearLocalStorage() {
+          // This method will now clear local client-side state, not server data
+          this.applySaveIfPending();''',
+              '''        clearLocalStorage() {
+          localStorage.removeItem("uhc.android.saveData");
+          localStorage.removeItem("uhc.android.settings");
+          localStorage.removeItem("uhc.android.tabData");
+          this.applySaveIfPending();'''
+          )
+
+          install_re = re.compile(
+              r'''    // Check for existing session on app start.*?\n    checkSession\(\);\n''',
+              re.S
+          )
+          install_repl = '''    // Android is local-only: no auth server, account, or network session.
+    the_store.VM.isAuthenticated = true;
+    the_store.VM.reloadLocalStorage();
+'''
+          s, n = install_re.subn(install_repl, s, count=1)
+          assert n == 1, "session/auth patch failed"
+
+          p.write_text(s)
+          print("Android offline patches applied.")
+          PY
+
       - name: Build UHC frontend for the private Android origins
         working-directory: /tmp/uhc-web
         env:
           ASSET_PACK_HREF: https://uhc-assets.local/
           ASSET_DIR: /assets/
-          APP_VERSION: 0.1.0-android
+          APP_VERSION: 0.1.1-android
           AUTH_SERVER_URL: ""
           NODE_OPTIONS: --max_old_space_size=8192
         run: |
           yarn install --frozen-lockfile --ignore-engines
-
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("public/index.html")
-          s = p.read_text()
-          s = "\n".join(line for line in s.splitlines() if "goatcounter" not in line and "gc.zgo.at" not in line)
-          p.write_text(s)
-          PY
 
           mkdir -p build
           (cd src && tar -cf - imods/ | gzip -9 - > imods.tar.gz)
@@ -88,7 +215,6 @@ jobs:
 
           echo "Bundled web files:"
           du -sh "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www"
-          find "$GITHUB_WORKSPACE/uhc-android/app/src/main/assets/www" -maxdepth 2 -type f | head -40
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -108,11 +234,11 @@ jobs:
       - name: Package deliverables
         run: |
           mkdir -p deliverable
-          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.0-debug.apk
+          cp uhc-android/app/build/outputs/apk/debug/app-debug.apk deliverable/UHC-Android-v0.1.1-debug.apk
           cp uhc-android/README.md deliverable/README.md
           cp uhc-android/WEB_FRONTEND_COMMIT.txt deliverable/WEB_FRONTEND_COMMIT.txt
 
-          zip -qr deliverable/UHC-Android-v0.1.0-source.zip uhc-android .github/workflows/uhc-android-build.yml \
+          zip -qr deliverable/UHC-Android-v0.1.1-source.zip uhc-android .github/workflows/uhc-android-build.yml \
             -x 'uhc-android/app/build/*' \
                'uhc-android/.gradle/*' \
                'uhc-android/app/src/main/assets/www/*'
@@ -122,7 +248,7 @@ jobs:
       - name: Upload APK and source checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: UHC-Android-v0.1.0
+          name: UHC-Android-v0.1.1
           path: deliverable/*
           if-no-files-found: error
           retention-days: 7
