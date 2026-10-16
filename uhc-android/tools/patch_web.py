@@ -140,6 +140,22 @@ s = (
 '''
     + s[ruffle_end:]
 )
+
+# Hide Ruffle's branded splash/preloader so Flash pages feel like native UHC.
+# The iframe already uses the SWF's configured background colour while loading.
+ruffle_config_marker = """              function isIOS() {"""
+ruffle_config_insert = """              window.RufflePlayer = window.RufflePlayer || {};
+              window.RufflePlayer.config = {
+                ...(window.RufflePlayer.config || {}),
+                splashScreen: false,
+                preloader: false,
+                contextMenu: false
+              };
+
+              function isIOS() {"""
+if ruffle_config_marker not in s:
+    raise RuntimeError("Ruffle config insertion point not found")
+s = s.replace(ruffle_config_marker, ruffle_config_insert, 1)
 write("src/components/UIElements/MediaEmbed.vue", s)
 
 # Restore local-only persistence. The hosted fork moved save/settings data to an
