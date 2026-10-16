@@ -126,6 +126,27 @@ s = s.replace(
 s = s.replace("      <MobileNotification />\n", "")
 write("src/App.vue", s)
 
+# The hosted web fork downloads Ruffle from unpkg. The Android app has no
+# INTERNET permission by design, so that produces a completely blank SWF.
+# Bundle the fork's self-hosted Ruffle files into the APK and point every SWF
+# iframe at that local runtime instead.
+s = read("src/components/UIElements/MediaEmbed.vue")
+old_ruffle = """        let scriptTag;
+        if (this.$isWebApp) {
+          scriptTag =
+            '<script src="https://unpkg.com/@ruffle-rs/ruffle"><\\/script>';
+        } else {
+          scriptTag = \`<script src="\${this.$getResourceURL(
+            "assets://js/ruffle/ruffle.js"
+          )}"><\\/script>\`;
+        }"""
+new_ruffle = """        const scriptTag =
+          \`<script src="\${window.location.origin}/ruffle/ruffle.js"><\\/script>\`;"""
+if old_ruffle not in s:
+    raise RuntimeError("Ruffle CDN block not found")
+s = s.replace(old_ruffle, new_ruffle)
+write("src/components/UIElements/MediaEmbed.vue", s)
+
 # Restore local-only persistence. The hosted fork moved save/settings data to an
 # HTTP auth server, which makes no sense in a fully offline APK.
 s = read("src/store/localData.js")
